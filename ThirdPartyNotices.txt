@@ -1,0 +1,5 @@
+PROJECT EMBER THIRD-PARTY NOTICES
+
+Epic Games Unreal Engine 5.8 Third Person Feature Pack content is incorporated under the Unreal Engine EULA and is UE-only content. It was imported from the locally installed engine through Unreal Editor's feature-pack API.
+
+Every future dependency or content pack must be recorded in Licenses/THIRD_PARTY_ASSETS.csv and reviewed before import or distribution.

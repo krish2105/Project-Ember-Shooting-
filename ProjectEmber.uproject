@@ -1,0 +1,25 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.8",
+  "Category": "Games",
+  "Description": "PROJECT EMBER native macOS third-person tactical shooter vertical slice.",
+  "Modules": [
+    { "Name": "EmberCore", "Type": "Runtime", "LoadingPhase": "Default" },
+    { "Name": "EmberGameplay", "Type": "Runtime", "LoadingPhase": "Default" },
+    { "Name": "EmberAI", "Type": "Runtime", "LoadingPhase": "Default" },
+    { "Name": "EmberMission", "Type": "Runtime", "LoadingPhase": "Default" },
+    { "Name": "EmberUI", "Type": "Runtime", "LoadingPhase": "Default" },
+    { "Name": "EmberEditor", "Type": "Editor", "LoadingPhase": "Default" },
+    { "Name": "EmberTests", "Type": "DeveloperTool", "LoadingPhase": "PostDefault" }
+  ],
+  "Plugins": [
+    { "Name": "EnhancedInput", "Enabled": true },
+    { "Name": "CommonUI", "Enabled": true },
+    { "Name": "GameplayTagsEditor", "Enabled": true, "TargetAllowList": ["Editor"] },
+    { "Name": "StateTree", "Enabled": true },
+    { "Name": "GameplayStateTree", "Enabled": true },
+    { "Name": "Niagara", "Enabled": true },
+    { "Name": "ModelingToolsEditorMode", "Enabled": true, "TargetAllowList": ["Editor"] }
+  ],
+  "TargetPlatforms": ["Mac"]
+}

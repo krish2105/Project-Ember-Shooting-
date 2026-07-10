@@ -1,0 +1,2 @@
+asset_id,title,publisher,listing_url,acquisition_date,license,ue_only,cc_by,version,source_hash,attribution_required,import_status,replacement_status,notes
+epic-tp-thirdperson-5.8,Unreal Engine 5.8 Third Person Feature Pack,Epic Games,Engine:/FeaturePacks/TP_ThirdPerson.upack,2026-07-10,Unreal Engine EULA,yes,no,5.8.0-55116800,,no,imported,retain,"Imported through FFeaturePackContentSource; source-code entries were skipped; includes mannequin, animations, input, prototype meshes, example maps and variants."

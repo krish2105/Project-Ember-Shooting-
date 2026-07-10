@@ -1,0 +1,32 @@
+# Unreal generated output
+Binaries/
+Build/Receipts/
+DerivedDataCache/
+Intermediate/
+Saved/
+StagedBuilds/
+Releases/
+.vs/
+.idea/
+.vscode/
+*.VC.db
+*.opensdf
+*.sdf
+*.sln
+*.suo
+*.xcodeproj
+*.xcworkspace
+*.code-workspace
+
+# Platform/editor noise
+.DS_Store
+*.log
+*.tmp
+*.bak
+
+# Credentials and local overrides
+.env
+.env.*
+Config/DefaultEngine.local.ini
+Config/DefaultGame.local.ini
+
