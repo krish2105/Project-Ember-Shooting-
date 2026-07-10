@@ -38,7 +38,16 @@ protected:
     void AimStarted();
     void AimCompleted();
     void FireStarted();
+    void FireCompleted();
     void Reload();
+    void TogglePauseMenu();
+    void SelectWeapon1();
+    void SelectWeapon2();
+    void SelectWeapon3();
+    void SelectWeapon4();
+    void SelectWeapon5();
+    void SelectWeapon6();
+    void EquipWeaponIndex(int32 Index);
     void MoveForward(float Value);
     void MoveRight(float Value);
     void Turn(float Value);
@@ -73,5 +82,5 @@ protected:
     UPROPERTY(VisibleInstanceOnly, Category="Camera") bool bRightShoulder = true;
     UPROPERTY(EditDefaultsOnly, Category="Movement") float JogSpeed = 500.0f;
     UPROPERTY(EditDefaultsOnly, Category="Movement") float SprintSpeed = 750.0f;
+    FTimerHandle AutomaticFireTimer;
 };
-

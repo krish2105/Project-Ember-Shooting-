@@ -19,6 +19,21 @@ bool UEmberMissionSubsystem::SetObjectiveState(FName ObjectiveId, EEmberObjectiv
     if (!Existing || *Existing == NewState) return false;
     *Existing = NewState;
     OnObjectiveStateChanged.Broadcast(ObjectiveId, NewState);
+    if (NewState == EEmberObjectiveState::Completed && ActiveMission)
+    {
+        for (const FEmberObjectiveDefinition& Objective : ActiveMission->Objectives)
+        {
+            EEmberObjectiveState* Candidate = ObjectiveStates.Find(Objective.Identifier);
+            if (!Candidate || *Candidate != EEmberObjectiveState::Inactive) continue;
+            const bool bReady = Objective.Prerequisites.IsEmpty() || Objective.Prerequisites.ContainsByPredicate(
+                [this](FName Prerequisite) { return GetObjectiveState(Prerequisite) != EEmberObjectiveState::Completed; }) == false;
+            if (bReady)
+            {
+                *Candidate = EEmberObjectiveState::Active;
+                OnObjectiveStateChanged.Broadcast(Objective.Identifier, EEmberObjectiveState::Active);
+            }
+        }
+    }
     return true;
 }
 

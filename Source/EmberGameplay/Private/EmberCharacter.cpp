@@ -17,6 +17,8 @@
 #include "InputAction.h"
 #include "InputActionValue.h"
 #include "InputMappingContext.h"
+#include "Kismet/GameplayStatics.h"
+#include "TimerManager.h"
 
 AEmberCharacter::AEmberCharacter()
 {
@@ -83,11 +85,19 @@ void AEmberCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
     PlayerInputComponent->BindAction(TEXT("Aim"), IE_Pressed, this, &AEmberCharacter::AimStarted);
     PlayerInputComponent->BindAction(TEXT("Aim"), IE_Released, this, &AEmberCharacter::AimCompleted);
     PlayerInputComponent->BindAction(TEXT("Fire"), IE_Pressed, this, &AEmberCharacter::FireStarted);
+    PlayerInputComponent->BindAction(TEXT("Fire"), IE_Released, this, &AEmberCharacter::FireCompleted);
     PlayerInputComponent->BindAction(TEXT("Reload"), IE_Pressed, this, &AEmberCharacter::Reload);
     PlayerInputComponent->BindAction(TEXT("ShoulderSwap"), IE_Pressed, this, &AEmberCharacter::SwapShoulder);
     PlayerInputComponent->BindAction(TEXT("Sprint"), IE_Pressed, this, &AEmberCharacter::StartSprint);
     PlayerInputComponent->BindAction(TEXT("Sprint"), IE_Released, this, &AEmberCharacter::StopSprint);
     PlayerInputComponent->BindAction(TEXT("Crouch"), IE_Pressed, this, &AEmberCharacter::ToggleCrouch);
+    PlayerInputComponent->BindAction(TEXT("PauseMenu"), IE_Pressed, this, &AEmberCharacter::TogglePauseMenu).bExecuteWhenPaused = true;
+    PlayerInputComponent->BindAction(TEXT("Weapon1"), IE_Pressed, this, &AEmberCharacter::SelectWeapon1);
+    PlayerInputComponent->BindAction(TEXT("Weapon2"), IE_Pressed, this, &AEmberCharacter::SelectWeapon2);
+    PlayerInputComponent->BindAction(TEXT("Weapon3"), IE_Pressed, this, &AEmberCharacter::SelectWeapon3);
+    PlayerInputComponent->BindAction(TEXT("Weapon4"), IE_Pressed, this, &AEmberCharacter::SelectWeapon4);
+    PlayerInputComponent->BindAction(TEXT("Weapon5"), IE_Pressed, this, &AEmberCharacter::SelectWeapon5);
+    PlayerInputComponent->BindAction(TEXT("Weapon6"), IE_Pressed, this, &AEmberCharacter::SelectWeapon6);
 }
 
 void AEmberCharacter::Move(const FInputActionValue& Value)
@@ -150,8 +160,49 @@ void AEmberCharacter::SetAiming(bool bNewAiming)
 
 void AEmberCharacter::AimStarted() { SetAiming(true); }
 void AEmberCharacter::AimCompleted() { SetAiming(false); }
-void AEmberCharacter::FireStarted() { if (Weapon) Weapon->RequestFire(BuildShotRequest()); }
+void AEmberCharacter::FireStarted()
+{
+    if (!Weapon) return;
+    Weapon->RequestFire(BuildShotRequest());
+    if (Weapon->IsAutomatic())
+        GetWorldTimerManager().SetTimer(AutomaticFireTimer, [this]() { if (Weapon) Weapon->RequestFire(BuildShotRequest()); }, 0.06f, true);
+}
+void AEmberCharacter::FireCompleted()
+{
+    GetWorldTimerManager().ClearTimer(AutomaticFireTimer);
+    if (Weapon) Weapon->StopFire();
+}
 void AEmberCharacter::Reload() { if (Weapon) Weapon->BeginReload(); }
+
+void AEmberCharacter::TogglePauseMenu()
+{
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        const bool bPause = !UGameplayStatics::IsGamePaused(this);
+        PC->SetPause(bPause);
+        PC->bShowMouseCursor = bPause;
+        bPause ? PC->SetInputMode(FInputModeGameAndUI()) : PC->SetInputMode(FInputModeGameOnly());
+    }
+}
+
+void AEmberCharacter::SelectWeapon1() { EquipWeaponIndex(0); }
+void AEmberCharacter::SelectWeapon2() { EquipWeaponIndex(1); }
+void AEmberCharacter::SelectWeapon3() { EquipWeaponIndex(2); }
+void AEmberCharacter::SelectWeapon4() { EquipWeaponIndex(3); }
+void AEmberCharacter::SelectWeapon5() { EquipWeaponIndex(4); }
+void AEmberCharacter::SelectWeapon6() { EquipWeaponIndex(5); }
+
+void AEmberCharacter::EquipWeaponIndex(int32 Index)
+{
+    static const TCHAR* Assets[] = {
+        TEXT("DA_Weapon_AshlineA4"), TEXT("DA_Weapon_SparrowC9"), TEXT("DA_Weapon_BreachP12"),
+        TEXT("DA_Weapon_VigilD3"), TEXT("DA_Weapon_ForgeL5"), TEXT("DA_Weapon_HarborS9")
+    };
+    if (!Weapon || Index < 0 || Index >= UE_ARRAY_COUNT(Assets)) return;
+    const FString Path = FString::Printf(TEXT("/Game/Ember/Weapons/%s.%s"), Assets[Index], Assets[Index]);
+    if (UEmberWeaponDefinition* Definition = LoadObject<UEmberWeaponDefinition>(nullptr, *Path))
+        Weapon->InitializeWeapon(Definition, 180);
+}
 
 void AEmberCharacter::SwapShoulder()
 {

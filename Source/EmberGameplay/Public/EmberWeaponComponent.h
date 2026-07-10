@@ -26,6 +26,8 @@ public:
     UFUNCTION(BlueprintPure) int32 GetMagazineAmmo() const { return MagazineAmmo; }
     UFUNCTION(BlueprintPure) int32 GetReserveAmmo() const { return ReserveAmmo; }
     UFUNCTION(BlueprintPure) float GetMaximumRange() const;
+    UFUNCTION(BlueprintPure) FText GetWeaponDisplayName() const;
+    UFUNCTION(BlueprintPure) bool IsAutomatic() const;
     UFUNCTION(BlueprintPure) bool IsMuzzleObstructed() const { return bLastMuzzleObstructed; }
     UPROPERTY(BlueprintAssignable) FEmberShotResolved OnShotResolved;
     UPROPERTY(BlueprintAssignable) FEmberAmmoChanged OnAmmoChanged;
@@ -39,4 +41,5 @@ protected:
     UPROPERTY(VisibleInstanceOnly, Category="Weapon") EEmberReloadStage ReloadStage = EEmberReloadStage::None;
     UPROPERTY(VisibleInstanceOnly, Category="Weapon") bool bLastMuzzleObstructed = false;
     double LastFireTimeSeconds = -TNumericLimits<double>::Max();
+    FTimerHandle ReloadTimer;
 };

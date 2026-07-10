@@ -4,6 +4,7 @@
 #include "EmberWeaponDefinition.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
+#include "TimerManager.h"
 
 UEmberWeaponComponent::UEmberWeaponComponent()
 {
@@ -41,6 +42,16 @@ bool UEmberWeaponComponent::CanFire() const
 float UEmberWeaponComponent::GetMaximumRange() const
 {
     return Definition ? Definition->MaximumRange : 10000.0f;
+}
+
+FText UEmberWeaponComponent::GetWeaponDisplayName() const
+{
+    return Definition ? Definition->DisplayName : FText::FromString(TEXT("Unarmed"));
+}
+
+bool UEmberWeaponComponent::IsAutomatic() const
+{
+    return ActiveFireMode == EEmberFireMode::FullyAutomatic || ActiveFireMode == EEmberFireMode::Burst;
 }
 
 bool UEmberWeaponComponent::RequestFire(const FEmberShotRequest& Request)
@@ -104,6 +115,8 @@ bool UEmberWeaponComponent::BeginReload()
 {
     if (!Definition || ReloadStage != EEmberReloadStage::None || MagazineAmmo >= Definition->MagazineCapacity || ReserveAmmo <= 0) return false;
     ReloadStage = EEmberReloadStage::Started;
+    if (UWorld* World = GetWorld())
+        World->GetTimerManager().SetTimer(ReloadTimer, this, &UEmberWeaponComponent::CompleteReload, 1.35f, false);
     return true;
 }
 
@@ -118,6 +131,7 @@ bool UEmberWeaponComponent::CancelReload()
 {
     if (ReloadStage == EEmberReloadStage::None || ReloadStage == EEmberReloadStage::MagazineInserted) return false;
     ReloadStage = EEmberReloadStage::None;
+    if (UWorld* World = GetWorld()) World->GetTimerManager().ClearTimer(ReloadTimer);
     return true;
 }
 

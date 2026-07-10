@@ -192,12 +192,23 @@ def assemble_harbor(game_mode_class):
     )
     if nav:
         generated(nav, "Harbor_NavigationBounds")
-        nav.set_actor_scale3d(unreal.Vector(1000, 1000, 30))
+        # The default brush is 200 uu. Scale 500 covers the intended 1 km x 1 km
+        # harbor without generating tiles for the unimplemented 4 km region.
+        nav.set_actor_scale3d(unreal.Vector(500, 500, 30))
 
-    # Licensed combat-template enemies provide immediate patrol/combat targets.
-    enemy_class = unreal.EditorAssetLibrary.load_blueprint_class(
-        "/Game/Variant_Combat/Blueprints/AI/BP_CombatEnemy"
-    )
+    mission_director_class = unreal.load_class(None, "/Script/EmberMission.EmberMissionDirector")
+    if mission_director_class:
+        director = ACTOR_SUBSYSTEM.spawn_actor_from_class(
+            mission_director_class,
+            unreal.Vector(0, 0, 200),
+            unreal.Rotator(0, 0, 0),
+            transient=False,
+        )
+        if director:
+            generated(director, "Harbor_MissionDirector")
+
+    # Native Ember enemies use the project's damage and tactical-state contracts.
+    enemy_class = unreal.load_class(None, "/Script/EmberAI.EmberEnemyCharacter")
     if enemy_class:
         enemy_locations = [
             unreal.Vector(-24000, 5000, 250),
@@ -208,6 +219,10 @@ def assemble_harbor(game_mode_class):
             unreal.Vector(25000, -16000, 250),
             unreal.Vector(33000, -4000, 250),
             unreal.Vector(41000, -33000, 250),
+            unreal.Vector(-12000, 25000, 250),
+            unreal.Vector(5000, 28000, 250),
+            unreal.Vector(30000, 30000, 250),
+            unreal.Vector(38000, -22000, 250),
         ]
         for index, location in enumerate(enemy_locations):
             enemy = ACTOR_SUBSYSTEM.spawn_actor_from_class(
