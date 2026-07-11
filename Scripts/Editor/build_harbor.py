@@ -101,6 +101,11 @@ def spawn_mesh(mesh, label, location, scale, rotation=None):
         raise RuntimeError(f"Unable to spawn {label}")
     actor.get_editor_property("static_mesh_component").set_static_mesh(mesh)
     generated(actor, label)
+    # The vertical slice is intentionally small enough to keep its authored
+    # blockout resident. Without this, a packaged World Partition game can
+    # spawn the pawn before the insertion cell (and its collision) streams in,
+    # causing the player to fall forever through an otherwise valid harbor.
+    persistent(actor)
     actor.set_actor_scale3d(scale)
     return actor
 
@@ -264,6 +269,7 @@ def assemble_harbor(game_mode_class):
         )
         if work_light:
             generated(work_light, f"Harbor_WorkLight_{index:02d}")
+            persistent(work_light)
             work_component = work_light.get_editor_property("point_light_component")
             work_component.set_editor_property("intensity", 18000.0)
             work_component.set_editor_property("attenuation_radius", 18000.0)
@@ -319,6 +325,7 @@ def assemble_harbor(game_mode_class):
             )
             if enemy:
                 generated(enemy, f"Harbor_Enemy_{index:02d}")
+                persistent(enemy)
 
     if not unreal.EditorLevelLibrary.save_current_level():
         raise RuntimeError("Unable to save harbor map")
