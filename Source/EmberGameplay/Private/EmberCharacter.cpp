@@ -139,9 +139,14 @@ void AEmberCharacter::ToggleCrouch() { bIsCrouched ? UnCrouch() : Crouch(); }
 void AEmberCharacter::InitializeStarterWeapon()
 {
     if (!Weapon) return;
-    const FPrimaryAssetId StarterId(TEXT("EmberWeapon"), TEXT("Weapon.AshlineA4"));
-    const FSoftObjectPath AssetPath = UAssetManager::Get().GetPrimaryAssetPath(StarterId);
-    UEmberWeaponDefinition* Starter = Cast<UEmberWeaponDefinition>(AssetPath.TryLoad());
+    UEmberWeaponDefinition* Starter = LoadObject<UEmberWeaponDefinition>(nullptr,
+        TEXT("/Game/Ember/Weapons/DA_Weapon_AshlineA4.DA_Weapon_AshlineA4"));
+    if (!Starter)
+    {
+        const FPrimaryAssetId StarterId(TEXT("EmberWeapon"), TEXT("Weapon.AshlineA4"));
+        const FSoftObjectPath AssetPath = UAssetManager::Get().GetPrimaryAssetPath(StarterId);
+        Starter = Cast<UEmberWeaponDefinition>(AssetPath.TryLoad());
+    }
     if (!Starter)
     {
         Starter = NewObject<UEmberWeaponDefinition>(this, TEXT("FallbackStarterWeapon"));
