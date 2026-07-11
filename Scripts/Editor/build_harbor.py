@@ -99,7 +99,13 @@ def spawn_mesh(mesh, label, location, scale, rotation=None):
     )
     if not actor:
         raise RuntimeError(f"Unable to spawn {label}")
-    actor.get_editor_property("static_mesh_component").set_static_mesh(mesh)
+    component = actor.get_editor_property("static_mesh_component")
+    component.set_static_mesh(mesh)
+    # Prototype assets are not guaranteed to retain a blocking collision
+    # profile after unattended duplication/cooking. Set it explicitly so the
+    # packaged pawn cannot fall through the harbor floor.
+    component.set_collision_profile_name("BlockAll")
+    component.set_collision_enabled(unreal.CollisionEnabled.QUERY_AND_PHYSICS)
     generated(actor, label)
     # The vertical slice is intentionally small enough to keep its authored
     # blockout resident. Without this, a packaged World Partition game can
@@ -138,6 +144,9 @@ def assemble_harbor(game_mode_class):
 
     # One-kilometre district base and waterfront.
     spawn_mesh(cube, "Harbor_Ground", unreal.Vector(0, 0, -150), unreal.Vector(1000, 1000, 1))
+    # A thick local insertion slab provides deterministic collision immediately
+    # beneath PlayerStart even before navigation and distant systems initialize.
+    spawn_mesh(cube, "Insertion_Foundation", unreal.Vector(-45000, 0, -100), unreal.Vector(160, 160, 2))
     spawn_mesh(plane, "Harbor_Waterfront", unreal.Vector(0, -47000, 0), unreal.Vector(500, 80, 1))
 
     # Tutorial insertion lane and security office.
@@ -200,14 +209,14 @@ def assemble_harbor(game_mode_class):
     starts = unreal.GameplayStatics.get_all_actors_of_class(world, unreal.PlayerStart)
     player_start = starts[0] if starts else ACTOR_SUBSYSTEM.spawn_actor_from_class(
         unreal.PlayerStart,
-        unreal.Vector(-45000, 0, 300),
+        unreal.Vector(-45000, 0, 150),
         unreal.Rotator(0, 0, 0),
         transient=False,
     )
     if player_start:
         generated(player_start, "Harbor_PlayerStart")
         persistent(player_start)
-        player_start.set_actor_location(unreal.Vector(-45000, 0, 300), False, False)
+        player_start.set_actor_location(unreal.Vector(-45000, 0, 150), False, False)
         player_start.set_actor_rotation(unreal.Rotator(0, 0, 0), False)
 
     # Runtime-safe outdoor lighting. These actors are persistent so World
