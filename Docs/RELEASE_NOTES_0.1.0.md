@@ -9,6 +9,16 @@ Native Apple Silicon Unreal Engine 5.8 tactical-shooter vertical slice.
 3. Extract the ZIP.
 4. Because this build is ad-hoc signed and not notarized, Control-click the app, choose **Open**, then confirm **Open**. If macOS still blocks it, open **System Settings → Privacy & Security** and choose **Open Anyway**.
 
+If macOS displays “Apple could not verify this app is free of malware,” verify the ZIP checksum first, then run:
+
+```bash
+xattr -dr com.apple.quarantine "$HOME/Downloads/ProjectEmber-Mac-Shipping.app"
+codesign --verify --deep --strict "$HOME/Downloads/ProjectEmber-Mac-Shipping.app"
+open "$HOME/Downloads/ProjectEmber-Mac-Shipping.app"
+```
+
+The expected ZIP SHA-256 is `dde1ddb6ae21a29f4a35a10846882a3345ae2b8d1bb7c7a1260d836a2c34c1cf`.
+
 ## Controls
 
 - Move: WASD or left stick
