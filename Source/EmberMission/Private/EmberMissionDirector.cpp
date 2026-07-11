@@ -5,19 +5,21 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
+#include "UObject/ConstructorHelpers.h"
 
 AEmberMissionDirector::AEmberMissionDirector()
 {
     PrimaryActorTick.bCanEverTick = true;
     PrimaryActorTick.TickInterval = 0.1f;
     Tags.Add(TEXT("EmberMissionDirector"));
+    static ConstructorHelpers::FObjectFinder<UEmberMissionDefinition> MissionAsset(
+        TEXT("/Game/Ember/Missions/DA_Mission_Harbor.DA_Mission_Harbor"));
+    if (MissionAsset.Succeeded()) MissionDefinition = MissionAsset.Object;
 }
 
 void AEmberMissionDirector::BeginPlay()
 {
     Super::BeginPlay();
-    MissionDefinition = LoadObject<UEmberMissionDefinition>(nullptr,
-        TEXT("/Game/Ember/Missions/DA_Mission_Harbor.DA_Mission_Harbor"));
     if (UEmberMissionSubsystem* Mission = GetWorld()->GetSubsystem<UEmberMissionSubsystem>())
     {
         Mission->StartMission(MissionDefinition);
