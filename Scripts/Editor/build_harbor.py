@@ -80,6 +80,18 @@ def generated(actor, label):
     return actor
 
 
+def persistent(actor):
+    """Keep critical runtime infrastructure loaded in a World Partition game."""
+    try:
+        actor.set_is_spatially_loaded(False)
+    except Exception:
+        try:
+            actor.set_editor_property("is_spatially_loaded", False)
+        except Exception:
+            pass
+    return actor
+
+
 def spawn_mesh(mesh, label, location, scale, rotation=None):
     rotation = rotation or unreal.Rotator(0.0, 0.0, 0.0)
     actor = ACTOR_SUBSYSTEM.spawn_actor_from_class(
@@ -178,11 +190,83 @@ def assemble_harbor(game_mode_class):
     spawn_mesh(cube, "Extraction_Pad", unreal.Vector(43000, -38000, 30), unreal.Vector(90, 90, 0.6))
     spawn_mesh(cube, "Optional_Manifest_Office", unreal.Vector(36000, 36000, 350), unreal.Vector(65, 50, 7))
 
-    # Reposition the template player start at the insertion point.
+    # Create a persistent, explicit insertion spawn. The duplicated template map
+    # may not retain its external PlayerStart when regenerated unattended.
     starts = unreal.GameplayStatics.get_all_actors_of_class(world, unreal.PlayerStart)
-    if starts:
-        starts[0].set_actor_location(unreal.Vector(-45000, 0, 250), False, False)
-        starts[0].set_actor_rotation(unreal.Rotator(0, 0, 0), False)
+    player_start = starts[0] if starts else ACTOR_SUBSYSTEM.spawn_actor_from_class(
+        unreal.PlayerStart,
+        unreal.Vector(-45000, 0, 300),
+        unreal.Rotator(0, 0, 0),
+        transient=False,
+    )
+    if player_start:
+        generated(player_start, "Harbor_PlayerStart")
+        persistent(player_start)
+        player_start.set_actor_location(unreal.Vector(-45000, 0, 300), False, False)
+        player_start.set_actor_rotation(unreal.Rotator(0, 0, 0), False)
+
+    # Runtime-safe outdoor lighting. These actors are persistent so World
+    # Partition never streams the world into an unlit black frame.
+    sun = ACTOR_SUBSYSTEM.spawn_actor_from_class(
+        unreal.DirectionalLight,
+        unreal.Vector(0, 0, 18000),
+        unreal.Rotator(-42, -28, 0),
+        transient=False,
+    )
+    if sun:
+        generated(sun, "Harbor_Sun")
+        persistent(sun)
+        sun.get_editor_property("directional_light_component").set_editor_property("intensity", 10.0)
+
+    skylight = ACTOR_SUBSYSTEM.spawn_actor_from_class(
+        unreal.SkyLight,
+        unreal.Vector(0, 0, 12000),
+        unreal.Rotator(0, 0, 0),
+        transient=False,
+    )
+    if skylight:
+        generated(skylight, "Harbor_Skylight")
+        persistent(skylight)
+        sky_component = skylight.get_editor_property("light_component")
+        sky_component.set_editor_property("intensity", 1.2)
+        sky_component.set_editor_property("real_time_capture", True)
+
+    atmosphere = ACTOR_SUBSYSTEM.spawn_actor_from_class(
+        unreal.SkyAtmosphere,
+        unreal.Vector(0, 0, 0),
+        unreal.Rotator(0, 0, 0),
+        transient=False,
+    )
+    if atmosphere:
+        generated(atmosphere, "Harbor_Atmosphere")
+        persistent(atmosphere)
+
+    fog = ACTOR_SUBSYSTEM.spawn_actor_from_class(
+        unreal.ExponentialHeightFog,
+        unreal.Vector(0, 0, -200),
+        unreal.Rotator(0, 0, 0),
+        transient=False,
+    )
+    if fog:
+        generated(fog, "Harbor_Fog")
+        persistent(fog)
+        fog.get_editor_property("component").set_editor_property("fog_density", 0.006)
+
+    for index, location in enumerate([
+        unreal.Vector(-36000, 0, 1800),
+        unreal.Vector(-12000, -12000, 2200),
+        unreal.Vector(12000, 12000, 2400),
+        unreal.Vector(28000, -16000, 2400),
+        unreal.Vector(40000, -34000, 2200),
+    ]):
+        work_light = ACTOR_SUBSYSTEM.spawn_actor_from_class(
+            unreal.PointLight, location, unreal.Rotator(0, 0, 0), transient=False
+        )
+        if work_light:
+            generated(work_light, f"Harbor_WorkLight_{index:02d}")
+            work_component = work_light.get_editor_property("point_light_component")
+            work_component.set_editor_property("intensity", 18000.0)
+            work_component.set_editor_property("attenuation_radius", 18000.0)
 
     nav = ACTOR_SUBSYSTEM.spawn_actor_from_class(
         unreal.NavMeshBoundsVolume,
@@ -192,6 +276,7 @@ def assemble_harbor(game_mode_class):
     )
     if nav:
         generated(nav, "Harbor_NavigationBounds")
+        persistent(nav)
         # The default brush is 200 uu. Scale 500 covers the intended 1 km x 1 km
         # harbor without generating tiles for the unimplemented 4 km region.
         nav.set_actor_scale3d(unreal.Vector(500, 500, 30))
@@ -206,6 +291,7 @@ def assemble_harbor(game_mode_class):
         )
         if director:
             generated(director, "Harbor_MissionDirector")
+            persistent(director)
 
     # Native Ember enemies use the project's damage and tactical-state contracts.
     enemy_class = unreal.load_class(None, "/Script/EmberAI.EmberEnemyCharacter")
