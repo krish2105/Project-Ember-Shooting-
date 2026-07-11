@@ -76,7 +76,7 @@ validate_and_archive_app() {
 
   local zip="$out/${label}.zip"
   /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$app" "$zip"
-  /usr/bin/shasum -a 256 "$zip" > "$zip.sha256"
+  (cd "$out" && /usr/bin/shasum -a 256 "$(basename "$zip")") > "$zip.sha256"
   printf 'Created validated arm64 archive: %s\n' "$zip"
 }
 
