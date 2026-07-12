@@ -23,7 +23,7 @@
 
 AEmberCharacter::AEmberCharacter()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = true;
     bUseControllerRotationYaw = false;
     GetCharacterMovement()->bOrientRotationToMovement = true;
 
@@ -49,13 +49,18 @@ AEmberCharacter::AEmberCharacter()
 void AEmberCharacter::BeginPlay()
 {
     Super::BeginPlay();
-    if (UAnimationAsset* IdleAnimation = LoadObject<UAnimationAsset>(
-        nullptr,
-        TEXT("/Game/Characters/Mannequins/Anims/Unarmed/MM_Idle.MM_Idle")))
+    IdleAnimation = LoadObject<UAnimationAsset>(nullptr,
+        TEXT("/Game/Characters/Mannequins/Anims/Unarmed/MM_Idle.MM_Idle"));
+    WalkAnimation = LoadObject<UAnimationAsset>(nullptr,
+        TEXT("/Game/Characters/Mannequins/Anims/Unarmed/Walk/MF_Unarmed_Walk_Fwd.MF_Unarmed_Walk_Fwd"));
+    JogAnimation = LoadObject<UAnimationAsset>(nullptr,
+        TEXT("/Game/Characters/Mannequins/Anims/Unarmed/Jog/MF_Unarmed_Jog_Fwd.MF_Unarmed_Jog_Fwd"));
+    if (IdleAnimation)
     {
         GetMesh()->SetAnimationMode(EAnimationMode::AnimationSingleNode);
         GetMesh()->SetAnimation(IdleAnimation);
         GetMesh()->Play(true);
+        ActiveLocomotionAnimation = IdleAnimation;
     }
     UCharacterMovementComponent* Movement = GetCharacterMovement();
     Movement->MaxWalkSpeed = JogSpeed;
@@ -76,6 +81,21 @@ void AEmberCharacter::BeginPlay()
         {
             if (OnFootMapping) Subsystem->AddMappingContext(OnFootMapping, 0);
         }
+    }
+}
+
+void AEmberCharacter::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+    const float Speed = GetVelocity().Size2D();
+    UAnimationAsset* Desired = IdleAnimation;
+    if (Speed > 420.0f && JogAnimation) Desired = JogAnimation;
+    else if (Speed > 5.0f && WalkAnimation) Desired = WalkAnimation;
+    if (Desired && Desired != ActiveLocomotionAnimation)
+    {
+        GetMesh()->SetAnimation(Desired);
+        GetMesh()->Play(true);
+        ActiveLocomotionAnimation = Desired;
     }
 }
 

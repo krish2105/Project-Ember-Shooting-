@@ -6,6 +6,7 @@
 #include "EmberCharacter.generated.h"
 
 class UCameraComponent;
+class UAnimationAsset;
 class UEmberArmorComponent;
 class UEmberDamageReceiverComponent;
 class UEmberHealthComponent;
@@ -24,6 +25,7 @@ class EMBERGAMEPLAY_API AEmberCharacter : public ACharacter, public IEmberDamage
 public:
     AEmberCharacter();
     virtual void BeginPlay() override;
+    virtual void Tick(float DeltaSeconds) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
     virtual FEmberDamageResult ReceiveEmberDamage_Implementation(const FEmberDamageSpec& DamageSpec) override;
     UFUNCTION(BlueprintCallable) void SetAiming(bool bNewAiming);
@@ -83,4 +85,8 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category="Movement") float JogSpeed = 500.0f;
     UPROPERTY(EditDefaultsOnly, Category="Movement") float SprintSpeed = 750.0f;
     FTimerHandle AutomaticFireTimer;
+    UPROPERTY(Transient) TObjectPtr<UAnimationAsset> IdleAnimation;
+    UPROPERTY(Transient) TObjectPtr<UAnimationAsset> WalkAnimation;
+    UPROPERTY(Transient) TObjectPtr<UAnimationAsset> JogAnimation;
+    UPROPERTY(Transient) TObjectPtr<UAnimationAsset> ActiveLocomotionAnimation;
 };

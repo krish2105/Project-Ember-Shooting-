@@ -128,6 +128,20 @@ def spawn_mesh(mesh, label, location, scale, rotation=None):
     # packaged pawn cannot fall through the harbor floor.
     component.set_collision_profile_name("BlockAll")
     component.set_collision_enabled(unreal.CollisionEnabled.QUERY_AND_PHYSICS)
+    if label in ("Harbor_Ground", "Insertion_Foundation", "Warehouse_Floor"):
+        material = unreal.load_asset(
+            "/Game/LevelPrototyping/Materials/MI_PrototypeGrid_Gray"
+        )
+    elif label.startswith("Container_") or "Cover" in label:
+        material = unreal.load_asset(
+            "/Game/LevelPrototyping/Materials/MI_PrototypeGrid_TopDark"
+        )
+    else:
+        material = unreal.load_asset(
+            "/Game/LevelPrototyping/Materials/MI_DefaultColorway"
+        )
+    if material:
+        component.set_material(0, material)
     generated(actor, label)
     # The vertical slice is intentionally small enough to keep its authored
     # blockout resident. Without this, a packaged World Partition game can
