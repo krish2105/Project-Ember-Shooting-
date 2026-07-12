@@ -21,6 +21,7 @@
 #include "InputAction.h"
 #include "InputActionValue.h"
 #include "InputMappingContext.h"
+#include "InputCoreTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
 #include "Sound/SoundWaveProcedural.h"
@@ -107,6 +108,10 @@ void AEmberCharacter::BeginPlay()
     InitializeStarterWeapon();
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
+        PC->bShowMouseCursor = false;
+        PC->SetInputMode(FInputModeGameOnly());
+        PC->SetIgnoreLookInput(false);
+        PC->SetIgnoreMoveInput(false);
         if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
         {
             if (OnFootMapping) Subsystem->AddMappingContext(OnFootMapping, 0);
@@ -126,6 +131,35 @@ void AEmberCharacter::Tick(float DeltaSeconds)
         GetMesh()->SetAnimation(Desired);
         GetMesh()->Play(true);
         ActiveLocomotionAnimation = Desired;
+    }
+
+    // Hardware-level fallback for packaged macOS builds using Common UI.
+    // Normal action mappings remain active; rate limiting prevents duplicate
+    // fire requests when both paths are delivered in the same frame.
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        const bool bAimHeld = PC->IsInputKeyDown(EKeys::RightMouseButton)
+            || PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftTrigger) > 0.35f;
+        if (bAimHeld != bDirectAimHeld)
+        {
+            bAimHeld ? AimStarted() : AimCompleted();
+            bDirectAimHeld = bAimHeld;
+        }
+
+        const bool bFireHeld = PC->IsInputKeyDown(EKeys::LeftMouseButton)
+            || PC->GetInputAnalogKeyState(EKeys::Gamepad_RightTrigger) > 0.35f;
+        if (bFireHeld && !bDirectFireHeld) FireStarted();
+        else if (!bFireHeld && bDirectFireHeld) FireCompleted();
+        bDirectFireHeld = bFireHeld;
+
+        if (PC->WasInputKeyJustPressed(EKeys::R)
+            || PC->WasInputKeyJustPressed(EKeys::Gamepad_FaceButton_Left)) Reload();
+        if (PC->WasInputKeyJustPressed(EKeys::One)) SelectWeapon1();
+        if (PC->WasInputKeyJustPressed(EKeys::Two)) SelectWeapon2();
+        if (PC->WasInputKeyJustPressed(EKeys::Three)) SelectWeapon3();
+        if (PC->WasInputKeyJustPressed(EKeys::Four)) SelectWeapon4();
+        if (PC->WasInputKeyJustPressed(EKeys::Five)) SelectWeapon5();
+        if (PC->WasInputKeyJustPressed(EKeys::Six)) SelectWeapon6();
     }
 }
 

@@ -97,4 +97,6 @@ protected:
     UPROPERTY(Transient) TObjectPtr<UAnimationAsset> WalkAnimation;
     UPROPERTY(Transient) TObjectPtr<UAnimationAsset> JogAnimation;
     UPROPERTY(Transient) TObjectPtr<UAnimationAsset> ActiveLocomotionAnimation;
+    bool bDirectFireHeld = false;
+    bool bDirectAimHeld = false;
 };
