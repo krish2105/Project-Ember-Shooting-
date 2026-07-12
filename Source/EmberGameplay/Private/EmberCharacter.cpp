@@ -3,6 +3,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
 #include "EmberArmorComponent.h"
 #include "EmberDamageReceiverComponent.h"
 #include "EmberHealthComponent.h"
@@ -22,6 +23,7 @@
 #include "InputMappingContext.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
+#include "Sound/SoundWaveProcedural.h"
 #include "UObject/ConstructorHelpers.h"
 
 AEmberCharacter::AEmberCharacter()
@@ -66,6 +68,12 @@ AEmberCharacter::AEmberCharacter()
         WeaponBodyVisual->SetStaticMesh(CubeMesh.Object);
         WeaponBarrelVisual->SetStaticMesh(CubeMesh.Object);
     }
+    MuzzleFlashLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("MuzzleFlashLight"));
+    MuzzleFlashLight->SetupAttachment(WeaponBarrelVisual);
+    MuzzleFlashLight->SetRelativeLocation(FVector(110.0f, 0.0f, 0.0f));
+    MuzzleFlashLight->SetAttenuationRadius(450.0f);
+    MuzzleFlashLight->SetLightColor(FLinearColor(1.0f, 0.35f, 0.04f));
+    MuzzleFlashLight->SetIntensity(0.0f);
 }
 
 void AEmberCharacter::BeginPlay()
@@ -231,6 +239,9 @@ void AEmberCharacter::SetAiming(bool bNewAiming)
 {
     bAiming = bNewAiming;
     CameraBoom->TargetArmLength = bAiming ? AimArmLength : ExplorationArmLength;
+    CameraBoom->SocketOffset.Z = bAiming ? 58.0f : 70.0f;
+    bUseControllerRotationYaw = bAiming;
+    GetCharacterMovement()->bOrientRotationToMovement = !bAiming;
 }
 
 void AEmberCharacter::AimStarted() { SetAiming(true); }
@@ -238,9 +249,11 @@ void AEmberCharacter::AimCompleted() { SetAiming(false); }
 void AEmberCharacter::FireStarted()
 {
     if (!Weapon) return;
-    Weapon->RequestFire(BuildShotRequest());
+    if (Weapon->RequestFire(BuildShotRequest())) PlayGunshotFeedback();
     if (Weapon->IsAutomatic())
-        GetWorldTimerManager().SetTimer(AutomaticFireTimer, [this]() { if (Weapon) Weapon->RequestFire(BuildShotRequest()); }, 0.06f, true);
+        GetWorldTimerManager().SetTimer(AutomaticFireTimer, [this]() {
+            if (Weapon && Weapon->RequestFire(BuildShotRequest())) PlayGunshotFeedback();
+        }, 0.06f, true);
 }
 void AEmberCharacter::FireCompleted()
 {
@@ -248,6 +261,47 @@ void AEmberCharacter::FireCompleted()
     if (Weapon) Weapon->StopFire();
 }
 void AEmberCharacter::Reload() { if (Weapon) Weapon->BeginReload(); }
+
+void AEmberCharacter::PlayGunshotFeedback()
+{
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        PC->AddPitchInput(-0.65f);
+        PC->AddYawInput(FMath::FRandRange(-0.18f, 0.18f));
+    }
+    if (MuzzleFlashLight)
+    {
+        MuzzleFlashLight->SetIntensity(8500.0f);
+        GetWorldTimerManager().ClearTimer(MuzzleFlashTimer);
+        GetWorldTimerManager().SetTimer(MuzzleFlashTimer, this,
+            &AEmberCharacter::ResetMuzzleFlash, 0.045f, false);
+    }
+
+    USoundWaveProcedural* Shot = NewObject<USoundWaveProcedural>(this);
+    Shot->SetSampleRate(22050);
+    Shot->NumChannels = 1;
+    Shot->Duration = 0.12f;
+    Shot->SoundGroup = SOUNDGROUP_Effects;
+    constexpr int32 SampleCount = 2646;
+    TArray<int16> Samples;
+    Samples.SetNumUninitialized(SampleCount);
+    for (int32 Index = 0; Index < SampleCount; ++Index)
+    {
+        const float T = static_cast<float>(Index) / 22050.0f;
+        const float Envelope = FMath::Exp(-T * 34.0f);
+        const float Crack = FMath::FRandRange(-1.0f, 1.0f);
+        const float Boom = FMath::Sin(2.0f * PI * 92.0f * T);
+        Samples[Index] = static_cast<int16>(FMath::Clamp((Crack * 0.72f + Boom * 0.28f) * Envelope, -1.0f, 1.0f) * 28000.0f);
+    }
+    Shot->QueueAudio(reinterpret_cast<const uint8*>(Samples.GetData()), Samples.Num() * sizeof(int16));
+    UGameplayStatics::PlaySoundAtLocation(this, Shot,
+        WeaponBarrelVisual ? WeaponBarrelVisual->GetComponentLocation() : GetActorLocation(), 1.0f, 1.0f);
+}
+
+void AEmberCharacter::ResetMuzzleFlash()
+{
+    if (MuzzleFlashLight) MuzzleFlashLight->SetIntensity(0.0f);
+}
 
 void AEmberCharacter::TogglePauseMenu()
 {

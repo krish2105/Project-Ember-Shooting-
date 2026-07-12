@@ -17,6 +17,7 @@ class UInputAction;
 class UInputMappingContext;
 class USpringArmComponent;
 class UStaticMeshComponent;
+class UPointLightComponent;
 struct FInputActionValue;
 
 UCLASS()
@@ -59,6 +60,8 @@ protected:
     void StopSprint();
     void ToggleCrouch();
     void InitializeStarterWeapon();
+    void PlayGunshotFeedback();
+    void ResetMuzzleFlash();
     FEmberShotRequest BuildShotRequest() const;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<USpringArmComponent> CameraBoom;
@@ -71,6 +74,7 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UEmberInteractionComponent> Interaction;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UStaticMeshComponent> WeaponBodyVisual;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UStaticMeshComponent> WeaponBarrelVisual;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UPointLightComponent> MuzzleFlashLight;
 
     UPROPERTY(EditDefaultsOnly, Category="Input") TObjectPtr<UInputMappingContext> OnFootMapping;
     UPROPERTY(EditDefaultsOnly, Category="Input") TObjectPtr<UInputAction> MoveAction;
@@ -88,6 +92,7 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category="Movement") float JogSpeed = 500.0f;
     UPROPERTY(EditDefaultsOnly, Category="Movement") float SprintSpeed = 750.0f;
     FTimerHandle AutomaticFireTimer;
+    FTimerHandle MuzzleFlashTimer;
     UPROPERTY(Transient) TObjectPtr<UAnimationAsset> IdleAnimation;
     UPROPERTY(Transient) TObjectPtr<UAnimationAsset> WalkAnimation;
     UPROPERTY(Transient) TObjectPtr<UAnimationAsset> JogAnimation;
