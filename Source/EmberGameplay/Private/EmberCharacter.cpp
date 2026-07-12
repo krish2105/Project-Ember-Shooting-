@@ -53,8 +53,8 @@ AEmberCharacter::AEmberCharacter()
     WeaponBodyVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponBodyVisual"));
     WeaponBodyVisual->SetupAttachment(GetMesh(), TEXT("hand_r"));
     WeaponBodyVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    WeaponBodyVisual->SetRelativeLocation(FVector(28.0f, 3.0f, -2.0f));
-    WeaponBodyVisual->SetRelativeRotation(FRotator(0.0f, 0.0f, 90.0f));
+    WeaponBodyVisual->SetRelativeLocation(FVector(12.0f, 2.0f, -1.0f));
+    WeaponBodyVisual->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
     WeaponBodyVisual->SetRelativeScale3D(FVector(0.55f, 0.08f, 0.10f));
     WeaponBarrelVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponBarrelVisual"));
     WeaponBarrelVisual->SetupAttachment(WeaponBodyVisual);
