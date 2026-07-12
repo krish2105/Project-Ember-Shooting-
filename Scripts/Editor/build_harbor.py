@@ -38,15 +38,34 @@ def configure_character_blueprint():
     generated = blueprint.generated_class()
     cdo = unreal.get_default_object(generated)
     mesh_component = cdo.get_editor_property("mesh")
+    template_class = unreal.load_class(
+        None,
+        "/Game/ThirdPerson/Blueprints/BP_ThirdPersonCharacter.BP_ThirdPersonCharacter_C",
+    )
+    template_mesh = None
+    if template_class:
+        template_cdo = unreal.get_default_object(template_class)
+        template_mesh = template_cdo.get_editor_property("mesh")
     mannequin = unreal.load_asset(
         "/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple"
     )
     anim_class = unreal.load_class(
         None, "/Game/Characters/Mannequins/Anims/Unarmed/ABP_Unarmed.ABP_Unarmed_C"
     )
-    if mannequin:
+    if template_mesh and template_mesh.get_editor_property("skeletal_mesh_asset"):
+        mesh_component.set_skeletal_mesh_asset(
+            template_mesh.get_editor_property("skeletal_mesh_asset")
+        )
+    elif mannequin:
         mesh_component.set_skeletal_mesh_asset(mannequin)
-    if anim_class:
+    if template_mesh and template_mesh.get_editor_property("anim_class"):
+        mesh_component.set_editor_property(
+            "anim_class", template_mesh.get_editor_property("anim_class")
+        )
+        mesh_component.set_editor_property(
+            "animation_mode", unreal.AnimationMode.ANIMATION_BLUEPRINT
+        )
+    elif anim_class:
         mesh_component.set_editor_property("anim_class", anim_class)
         mesh_component.set_editor_property(
             "animation_mode", unreal.AnimationMode.ANIMATION_BLUEPRINT
@@ -55,8 +74,11 @@ def configure_character_blueprint():
         "relative_location", unreal.Vector(0.0, 0.0, -90.0)
     )
     mesh_component.set_editor_property(
-        "relative_rotation", unreal.Rotator(0.0, -90.0, 0.0)
+        "relative_rotation",
+        unreal.Rotator(pitch=0.0, yaw=-90.0, roll=0.0),
     )
+    mesh_component.set_collision_profile_name("CharacterMesh")
+    mesh_component.set_simulate_physics(False)
     unreal.BlueprintEditorLibrary.compile_blueprint(blueprint)
     unreal.EditorAssetLibrary.save_loaded_asset(blueprint)
     return blueprint.generated_class()
@@ -136,17 +158,20 @@ def assemble_harbor(game_mode_class):
     world_settings = world.get_world_settings()
     world_settings.set_editor_property("default_game_mode", game_mode_class)
 
-    cube = unreal.load_asset("/Game/LevelPrototyping/Meshes/SM_Cube")
+    # Engine basic cube has deterministic simple collision in cooked builds.
+    # The LevelPrototyping cube rendered correctly but did not block the
+    # packaged CharacterMovement capsule on this UE 5.8 Mac build.
+    cube = unreal.load_asset("/Engine/BasicShapes/Cube.Cube")
     plane = unreal.load_asset("/Game/LevelPrototyping/Meshes/SM_Plane")
     ramp = unreal.load_asset("/Game/LevelPrototyping/Meshes/SM_Ramp")
     if not cube or not plane or not ramp:
         raise RuntimeError("Prototype mesh pack is incomplete")
 
     # One-kilometre district base and waterfront.
-    spawn_mesh(cube, "Harbor_Ground", unreal.Vector(0, 0, -150), unreal.Vector(1000, 1000, 1))
+    spawn_mesh(cube, "Harbor_Ground", unreal.Vector(0, 0, -50), unreal.Vector(1000, 1000, 1))
     # A thick local insertion slab provides deterministic collision immediately
     # beneath PlayerStart even before navigation and distant systems initialize.
-    spawn_mesh(cube, "Insertion_Foundation", unreal.Vector(-45000, 0, -100), unreal.Vector(160, 160, 2))
+    spawn_mesh(cube, "Insertion_Foundation", unreal.Vector(-45000, 0, -50), unreal.Vector(160, 160, 1))
     spawn_mesh(plane, "Harbor_Waterfront", unreal.Vector(0, -47000, 0), unreal.Vector(500, 80, 1))
 
     # Tutorial insertion lane and security office.
@@ -209,14 +234,14 @@ def assemble_harbor(game_mode_class):
     starts = unreal.GameplayStatics.get_all_actors_of_class(world, unreal.PlayerStart)
     player_start = starts[0] if starts else ACTOR_SUBSYSTEM.spawn_actor_from_class(
         unreal.PlayerStart,
-        unreal.Vector(-45000, 0, 150),
+        unreal.Vector(-45000, 0, 110),
         unreal.Rotator(0, 0, 0),
         transient=False,
     )
     if player_start:
         generated(player_start, "Harbor_PlayerStart")
         persistent(player_start)
-        player_start.set_actor_location(unreal.Vector(-45000, 0, 150), False, False)
+        player_start.set_actor_location(unreal.Vector(-45000, 0, 110), False, False)
         player_start.set_actor_rotation(unreal.Rotator(0, 0, 0), False)
 
     # Runtime-safe outdoor lighting. These actors are persistent so World

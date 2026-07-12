@@ -1,4 +1,5 @@
 #include "EmberCharacter.h"
+#include "Animation/AnimationAsset.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EmberArmorComponent.h"
@@ -48,7 +49,26 @@ AEmberCharacter::AEmberCharacter()
 void AEmberCharacter::BeginPlay()
 {
     Super::BeginPlay();
-    GetCharacterMovement()->MaxWalkSpeed = JogSpeed;
+    if (UAnimationAsset* IdleAnimation = LoadObject<UAnimationAsset>(
+        nullptr,
+        TEXT("/Game/Characters/Mannequins/Anims/Unarmed/MM_Idle.MM_Idle")))
+    {
+        GetMesh()->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+        GetMesh()->SetAnimation(IdleAnimation);
+        GetMesh()->Play(true);
+    }
+    UCharacterMovementComponent* Movement = GetCharacterMovement();
+    Movement->MaxWalkSpeed = JogSpeed;
+    Movement->MaxFlySpeed = JogSpeed;
+    // The generated World Partition blockout has shown inconsistent floor
+    // detection in packaged Mac builds. Constrain this ground-based vertical
+    // slice to its insertion elevation so the pawn remains controllable and
+    // the animation graph never enters its endless falling state.
+    Movement->GravityScale = 0.0f;
+    Movement->SetPlaneConstraintNormal(FVector::UpVector);
+    Movement->SetPlaneConstraintOrigin(FVector(0.0f, 0.0f, GetActorLocation().Z));
+    Movement->SetPlaneConstraintEnabled(true);
+    Movement->SetMovementMode(MOVE_Flying);
     InitializeStarterWeapon();
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
@@ -132,8 +152,16 @@ void AEmberCharacter::MoveRight(float Value)
 
 void AEmberCharacter::Turn(float Value) { AddControllerYawInput(Value); }
 void AEmberCharacter::LookUp(float Value) { AddControllerPitchInput(Value); }
-void AEmberCharacter::StartSprint() { GetCharacterMovement()->MaxWalkSpeed = SprintSpeed; }
-void AEmberCharacter::StopSprint() { GetCharacterMovement()->MaxWalkSpeed = JogSpeed; }
+void AEmberCharacter::StartSprint()
+{
+    GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
+    GetCharacterMovement()->MaxFlySpeed = SprintSpeed;
+}
+void AEmberCharacter::StopSprint()
+{
+    GetCharacterMovement()->MaxWalkSpeed = JogSpeed;
+    GetCharacterMovement()->MaxFlySpeed = JogSpeed;
+}
 void AEmberCharacter::ToggleCrouch() { bIsCrouched ? UnCrouch() : Crouch(); }
 
 void AEmberCharacter::InitializeStarterWeapon()
