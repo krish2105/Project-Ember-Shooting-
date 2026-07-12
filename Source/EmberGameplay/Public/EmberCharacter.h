@@ -16,6 +16,7 @@ class UEmberWeaponComponent;
 class UInputAction;
 class UInputMappingContext;
 class USpringArmComponent;
+class UStaticMeshComponent;
 struct FInputActionValue;
 
 UCLASS()
@@ -68,6 +69,8 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UEmberWeaponComponent> Weapon;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UEmberInventoryComponent> Inventory;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UEmberInteractionComponent> Interaction;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UStaticMeshComponent> WeaponBodyVisual;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UStaticMeshComponent> WeaponBarrelVisual;
 
     UPROPERTY(EditDefaultsOnly, Category="Input") TObjectPtr<UInputMappingContext> OnFootMapping;
     UPROPERTY(EditDefaultsOnly, Category="Input") TObjectPtr<UInputAction> MoveAction;

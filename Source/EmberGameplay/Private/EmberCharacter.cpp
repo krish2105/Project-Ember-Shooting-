@@ -2,6 +2,7 @@
 #include "Animation/AnimationAsset.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "EmberArmorComponent.h"
 #include "EmberDamageReceiverComponent.h"
 #include "EmberHealthComponent.h"
@@ -10,6 +11,7 @@
 #include "EmberWeaponComponent.h"
 #include "EmberWeaponDefinition.h"
 #include "Engine/AssetManager.h"
+#include "Engine/StaticMesh.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -20,6 +22,7 @@
 #include "InputMappingContext.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
+#include "UObject/ConstructorHelpers.h"
 
 AEmberCharacter::AEmberCharacter()
 {
@@ -44,6 +47,25 @@ AEmberCharacter::AEmberCharacter()
     Weapon = CreateDefaultSubobject<UEmberWeaponComponent>(TEXT("Weapon"));
     Inventory = CreateDefaultSubobject<UEmberInventoryComponent>(TEXT("Inventory"));
     Interaction = CreateDefaultSubobject<UEmberInteractionComponent>(TEXT("Interaction"));
+
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(
+        TEXT("/Engine/BasicShapes/Cube.Cube"));
+    WeaponBodyVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponBodyVisual"));
+    WeaponBodyVisual->SetupAttachment(GetMesh(), TEXT("hand_r"));
+    WeaponBodyVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    WeaponBodyVisual->SetRelativeLocation(FVector(28.0f, 3.0f, -2.0f));
+    WeaponBodyVisual->SetRelativeRotation(FRotator(0.0f, 0.0f, 90.0f));
+    WeaponBodyVisual->SetRelativeScale3D(FVector(0.55f, 0.08f, 0.10f));
+    WeaponBarrelVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponBarrelVisual"));
+    WeaponBarrelVisual->SetupAttachment(WeaponBodyVisual);
+    WeaponBarrelVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    WeaponBarrelVisual->SetRelativeLocation(FVector(58.0f, 0.0f, 2.0f));
+    WeaponBarrelVisual->SetRelativeScale3D(FVector(0.65f, 0.40f, 0.40f));
+    if (CubeMesh.Succeeded())
+    {
+        WeaponBodyVisual->SetStaticMesh(CubeMesh.Object);
+        WeaponBarrelVisual->SetStaticMesh(CubeMesh.Object);
+    }
 }
 
 void AEmberCharacter::BeginPlay()
@@ -198,9 +220,9 @@ void AEmberCharacter::InitializeStarterWeapon()
     if (!Starter)
     {
         Starter = NewObject<UEmberWeaponDefinition>(this, TEXT("FallbackStarterWeapon"));
-        Starter->Identifier = TEXT("Weapon.FallbackStarter");
-        Starter->DisplayName = FText::FromString(TEXT("Fallback Carbine"));
-        Starter->SupportedFireModes = { EEmberFireMode::SemiAutomatic };
+        Starter->Identifier = TEXT("Weapon.AshlineA4.Runtime");
+        Starter->DisplayName = FText::FromString(TEXT("ASHLINE A4"));
+        Starter->SupportedFireModes = { EEmberFireMode::SemiAutomatic, EEmberFireMode::FullyAutomatic };
     }
     Weapon->InitializeWeapon(Starter, 180);
 }
@@ -253,8 +275,24 @@ void AEmberCharacter::EquipWeaponIndex(int32 Index)
     };
     if (!Weapon || Index < 0 || Index >= UE_ARRAY_COUNT(Assets)) return;
     const FString Path = FString::Printf(TEXT("/Game/Ember/Weapons/%s.%s"), Assets[Index], Assets[Index]);
-    if (UEmberWeaponDefinition* Definition = LoadObject<UEmberWeaponDefinition>(nullptr, *Path))
-        Weapon->InitializeWeapon(Definition, 180);
+    UEmberWeaponDefinition* Definition = LoadObject<UEmberWeaponDefinition>(nullptr, *Path);
+    if (!Definition)
+    {
+        static const TCHAR* Names[] = {
+            TEXT("ASHLINE A4"), TEXT("SPARROW C9"), TEXT("BREACH P12"),
+            TEXT("VIGIL D3"), TEXT("FORGE L5"), TEXT("HARBOR S9")
+        };
+        Definition = NewObject<UEmberWeaponDefinition>(this);
+        Definition->Identifier = FName(*FString::Printf(TEXT("Weapon.Runtime.%d"), Index));
+        Definition->DisplayName = FText::FromString(Names[Index]);
+        Definition->MagazineCapacity = Index == 2 ? 8 : (Index == 4 ? 50 : 30);
+        Definition->RoundsPerMinute = Index == 2 ? 180.0f : (Index == 4 ? 750.0f : 600.0f);
+        Definition->BaseDamage = Index == 2 ? 75.0f : (Index == 3 ? 55.0f : 30.0f);
+        Definition->SupportedFireModes = Index == 2 || Index == 3
+            ? TArray<EEmberFireMode>{ EEmberFireMode::SemiAutomatic }
+            : TArray<EEmberFireMode>{ EEmberFireMode::FullyAutomatic };
+    }
+    Weapon->InitializeWeapon(Definition, 180);
 }
 
 void AEmberCharacter::SwapShoulder()
@@ -268,7 +306,9 @@ FEmberShotRequest AEmberCharacter::BuildShotRequest() const
     FEmberShotRequest Request;
     Request.CameraOrigin = FollowCamera->GetComponentLocation();
     Request.DesiredDirection = FollowCamera->GetForwardVector();
-    Request.MuzzleOrigin = GetMesh() ? GetMesh()->GetSocketLocation(TEXT("Muzzle")) : GetActorLocation() + GetActorForwardVector() * 50.0f;
+    Request.MuzzleOrigin = WeaponBarrelVisual
+        ? WeaponBarrelVisual->GetComponentLocation()
+        : GetActorLocation() + GetActorForwardVector() * 50.0f;
     Request.MaximumRange = Weapon ? Weapon->GetMaximumRange() : 10000.0f;
     return Request;
 }
