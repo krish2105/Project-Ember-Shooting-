@@ -33,6 +33,7 @@ public:
     UFUNCTION(BlueprintCallable) void SetAiming(bool bNewAiming);
     UFUNCTION(BlueprintCallable) void SwapShoulder();
     UFUNCTION(BlueprintPure) bool IsAiming() const { return bAiming; }
+    UFUNCTION(BlueprintPure) bool IsFiringInputHeld() const { return bDirectFireHeld || bAxisFireHeld; }
     UFUNCTION(BlueprintPure) UEmberHealthComponent* GetHealthComponent() const { return Health; }
     UFUNCTION(BlueprintPure) UEmberArmorComponent* GetArmorComponent() const { return Armor; }
     UFUNCTION(BlueprintPure) UEmberWeaponComponent* GetWeaponComponent() const { return Weapon; }
@@ -60,6 +61,16 @@ protected:
     void StopSprint();
     void ToggleCrouch();
     void InitializeStarterWeapon();
+    void AimAxis(float Value);
+    void FireAxis(float Value);
+    void ReloadAxis(float Value);
+    void Weapon1Axis(float Value);
+    void Weapon2Axis(float Value);
+    void Weapon3Axis(float Value);
+    void Weapon4Axis(float Value);
+    void Weapon5Axis(float Value);
+    void Weapon6Axis(float Value);
+    void HandleWeaponAxis(float Value, int32 Index);
     void PlayGunshotFeedback();
     void ResetMuzzleFlash();
     FEmberShotRequest BuildShotRequest() const;
@@ -99,4 +110,8 @@ protected:
     UPROPERTY(Transient) TObjectPtr<UAnimationAsset> ActiveLocomotionAnimation;
     bool bDirectFireHeld = false;
     bool bDirectAimHeld = false;
+    bool bAxisFireHeld = false;
+    bool bAxisAimHeld = false;
+    bool bAxisReloadHeld = false;
+    bool bWeaponAxisHeld[6] = { false, false, false, false, false, false };
 };

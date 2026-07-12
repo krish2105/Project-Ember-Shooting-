@@ -184,6 +184,15 @@ void AEmberCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
     PlayerInputComponent->BindAxis(TEXT("MoveRight"), this, &AEmberCharacter::MoveRight);
     PlayerInputComponent->BindAxis(TEXT("Turn"), this, &AEmberCharacter::Turn);
     PlayerInputComponent->BindAxis(TEXT("LookUp"), this, &AEmberCharacter::LookUp);
+    PlayerInputComponent->BindAxis(TEXT("AimAxis"), this, &AEmberCharacter::AimAxis);
+    PlayerInputComponent->BindAxis(TEXT("FireAxis"), this, &AEmberCharacter::FireAxis);
+    PlayerInputComponent->BindAxis(TEXT("ReloadAxis"), this, &AEmberCharacter::ReloadAxis);
+    PlayerInputComponent->BindAxis(TEXT("Weapon1Axis"), this, &AEmberCharacter::Weapon1Axis);
+    PlayerInputComponent->BindAxis(TEXT("Weapon2Axis"), this, &AEmberCharacter::Weapon2Axis);
+    PlayerInputComponent->BindAxis(TEXT("Weapon3Axis"), this, &AEmberCharacter::Weapon3Axis);
+    PlayerInputComponent->BindAxis(TEXT("Weapon4Axis"), this, &AEmberCharacter::Weapon4Axis);
+    PlayerInputComponent->BindAxis(TEXT("Weapon5Axis"), this, &AEmberCharacter::Weapon5Axis);
+    PlayerInputComponent->BindAxis(TEXT("Weapon6Axis"), this, &AEmberCharacter::Weapon6Axis);
     PlayerInputComponent->BindAction(TEXT("Jump"), IE_Pressed, this, &ACharacter::Jump);
     PlayerInputComponent->BindAction(TEXT("Jump"), IE_Released, this, &ACharacter::StopJumping);
     PlayerInputComponent->BindAction(TEXT("Aim"), IE_Pressed, this, &AEmberCharacter::AimStarted);
@@ -236,6 +245,37 @@ void AEmberCharacter::MoveRight(float Value)
 
 void AEmberCharacter::Turn(float Value) { AddControllerYawInput(Value); }
 void AEmberCharacter::LookUp(float Value) { AddControllerPitchInput(Value); }
+void AEmberCharacter::AimAxis(float Value)
+{
+    const bool bHeld = Value > 0.35f;
+    if (bHeld != bAxisAimHeld) bHeld ? AimStarted() : AimCompleted();
+    bAxisAimHeld = bHeld;
+}
+void AEmberCharacter::FireAxis(float Value)
+{
+    const bool bHeld = Value > 0.35f;
+    if (bHeld && !bAxisFireHeld) FireStarted();
+    else if (!bHeld && bAxisFireHeld) FireCompleted();
+    bAxisFireHeld = bHeld;
+}
+void AEmberCharacter::ReloadAxis(float Value)
+{
+    const bool bHeld = Value > 0.35f;
+    if (bHeld && !bAxisReloadHeld) Reload();
+    bAxisReloadHeld = bHeld;
+}
+void AEmberCharacter::HandleWeaponAxis(float Value, int32 Index)
+{
+    const bool bHeld = Value > 0.35f;
+    if (bHeld && !bWeaponAxisHeld[Index]) EquipWeaponIndex(Index);
+    bWeaponAxisHeld[Index] = bHeld;
+}
+void AEmberCharacter::Weapon1Axis(float Value) { HandleWeaponAxis(Value, 0); }
+void AEmberCharacter::Weapon2Axis(float Value) { HandleWeaponAxis(Value, 1); }
+void AEmberCharacter::Weapon3Axis(float Value) { HandleWeaponAxis(Value, 2); }
+void AEmberCharacter::Weapon4Axis(float Value) { HandleWeaponAxis(Value, 3); }
+void AEmberCharacter::Weapon5Axis(float Value) { HandleWeaponAxis(Value, 4); }
+void AEmberCharacter::Weapon6Axis(float Value) { HandleWeaponAxis(Value, 5); }
 void AEmberCharacter::StartSprint()
 {
     GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;

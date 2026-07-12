@@ -29,6 +29,11 @@ void AEmberHUD::DrawHUD()
         Weapon ? Weapon->GetMagazineAmmo() : 0,
         Weapon ? Weapon->GetReserveAmmo() : 0);
     DrawText(Status, FLinearColor::White, 40.0f, Canvas->ClipY - 70.0f, nullptr, 1.2f, false);
+    const FString CombatState = Character->IsAiming()
+        ? (Character->IsFiringInputHeld() ? TEXT("AIM • FIRING") : TEXT("AIM"))
+        : (Character->IsFiringInputHeld() ? TEXT("FIRING") : TEXT("HIP"));
+    DrawText(CombatState, FLinearColor(1.0f, 0.45f, 0.08f),
+        Canvas->ClipX - 190.0f, Canvas->ClipY - 70.0f, nullptr, 1.0f, false);
 
     TArray<AActor*> Enemies;
     UGameplayStatics::GetAllActorsWithTag(this, TEXT("EmberEnemy"), Enemies);
