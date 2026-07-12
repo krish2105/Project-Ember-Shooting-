@@ -30,6 +30,7 @@
 AEmberCharacter::AEmberCharacter()
 {
     PrimaryActorTick.bCanEverTick = true;
+    AutoPossessPlayer = EAutoReceiveInput::Player0;
     bUseControllerRotationYaw = false;
     GetCharacterMovement()->bOrientRotationToMovement = true;
 
@@ -106,6 +107,7 @@ void AEmberCharacter::BeginPlay()
     Movement->SetPlaneConstraintEnabled(true);
     Movement->SetMovementMode(MOVE_Flying);
     InitializeStarterWeapon();
+    GetWorldTimerManager().SetTimerForNextTick(this, &AEmberCharacter::ForceGameplayInput);
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
         PC->bShowMouseCursor = false;
@@ -117,6 +119,21 @@ void AEmberCharacter::BeginPlay()
             if (OnFootMapping) Subsystem->AddMappingContext(OnFootMapping, 0);
         }
     }
+}
+
+void AEmberCharacter::ForceGameplayInput()
+{
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (!PC && GetWorld()) PC = GetWorld()->GetFirstPlayerController();
+    if (!PC) return;
+    if (PC->GetPawn() != this) PC->Possess(this);
+    EnableInput(PC);
+    PC->SetPause(false);
+    PC->bShowMouseCursor = false;
+    PC->SetInputMode(FInputModeGameOnly());
+    PC->SetIgnoreLookInput(false);
+    PC->SetIgnoreMoveInput(false);
+    PC->FlushPressedKeys();
 }
 
 void AEmberCharacter::Tick(float DeltaSeconds)

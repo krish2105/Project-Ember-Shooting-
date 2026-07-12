@@ -61,6 +61,7 @@ protected:
     void StopSprint();
     void ToggleCrouch();
     void InitializeStarterWeapon();
+    void ForceGameplayInput();
     void AimAxis(float Value);
     void FireAxis(float Value);
     void ReloadAxis(float Value);
