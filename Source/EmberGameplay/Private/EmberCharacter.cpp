@@ -235,8 +235,27 @@ void AEmberCharacter::MoveRight(float Value)
     AddMovementInput(FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y), Value);
 }
 
-void AEmberCharacter::Turn(float Value) { AddControllerYawInput(Value); }
-void AEmberCharacter::LookUp(float Value) { AddControllerPitchInput(Value); }
+void AEmberCharacter::Turn(float Value)
+{
+    if (FMath::IsNearlyZero(Value)) return;
+    AddControllerYawInput(Value);
+    if (!bLookInputConfirmed)
+    {
+        bLookInputConfirmed = true;
+        UE_LOG(LogEmberCombat, Log, TEXT("Player look input confirmed: yaw delta=%.4f"), Value);
+    }
+}
+
+void AEmberCharacter::LookUp(float Value)
+{
+    if (FMath::IsNearlyZero(Value)) return;
+    AddControllerPitchInput(Value);
+    if (!bLookInputConfirmed)
+    {
+        bLookInputConfirmed = true;
+        UE_LOG(LogEmberCombat, Log, TEXT("Player look input confirmed: pitch delta=%.4f"), Value);
+    }
+}
 void AEmberCharacter::StartSprint()
 {
     GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;

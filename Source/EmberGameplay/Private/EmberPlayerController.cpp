@@ -1,4 +1,5 @@
 #include "EmberPlayerController.h"
+#include "EmberLog.h"
 #include "GameFramework/Pawn.h"
 #include "TimerManager.h"
 
@@ -18,6 +19,11 @@ void AEmberPlayerController::ArmGameplayInput()
 {
     SetPause(false);
     bShowMouseCursor = false;
+    // Ignore-input APIs are stack based. BeginPlay and OnPossess can both run
+    // during packaged startup, so normalize before adding the short launch
+    // guard instead of leaving two locks for one delayed unlock.
+    ResetIgnoreLookInput();
+    ResetIgnoreMoveInput();
     SetIgnoreLookInput(true);
     SetIgnoreMoveInput(false);
     SetInputMode(FInputModeGameOnly());
@@ -38,7 +44,9 @@ void AEmberPlayerController::ActivateGameplayInput()
     }
     SetPause(false);
     bShowMouseCursor = false;
-    SetIgnoreLookInput(false);
-    SetIgnoreMoveInput(false);
+    ResetIgnoreLookInput();
+    ResetIgnoreMoveInput();
     SetInputMode(FInputModeGameOnly());
+    UE_LOG(LogEmberCombat, Log, TEXT("Gameplay mouse/look input activated; ignored=%s"),
+        IsLookInputIgnored() ? TEXT("true") : TEXT("false"));
 }

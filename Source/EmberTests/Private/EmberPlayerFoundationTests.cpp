@@ -31,6 +31,15 @@ bool FEmberPlayerWalkingFoundationTest::RunTest(const FString& Parameters)
         GameMode->DefaultPawnClass == AEmberCharacter::StaticClass());
 
     const UInputSettings* InputSettings = GetDefault<UInputSettings>();
+    auto HasAxisKey = [InputSettings](const FName AxisName, const FKey ExpectedKey)
+    {
+        TArray<FInputAxisKeyMapping> Mappings;
+        InputSettings->GetAxisMappingByName(AxisName, Mappings);
+        return Mappings.ContainsByPredicate([ExpectedKey](const FInputAxisKeyMapping& Mapping)
+        {
+            return Mapping.Key == ExpectedKey;
+        });
+    };
     auto HasActionKey = [InputSettings](const FName ActionName, const FKey ExpectedKey)
     {
         TArray<FInputActionKeyMapping> Mappings;
@@ -42,6 +51,8 @@ bool FEmberPlayerWalkingFoundationTest::RunTest(const FString& Parameters)
     };
     TestTrue(TEXT("Mouse fire is mapped"), HasActionKey(TEXT("Fire"), EKeys::LeftMouseButton));
     TestTrue(TEXT("Mouse aim is mapped"), HasActionKey(TEXT("Aim"), EKeys::RightMouseButton));
+    TestTrue(TEXT("Horizontal mouse look is mapped"), HasAxisKey(TEXT("Turn"), EKeys::MouseX));
+    TestTrue(TEXT("Vertical mouse look is mapped"), HasAxisKey(TEXT("LookUp"), EKeys::MouseY));
     TestTrue(TEXT("Keyboard reload is mapped"), HasActionKey(TEXT("Reload"), EKeys::R));
     TestTrue(TEXT("Keyboard interact is mapped"), HasActionKey(TEXT("Interact"), EKeys::E));
     TestTrue(TEXT("Keyboard melee is mapped"), HasActionKey(TEXT("Melee"), EKeys::V));

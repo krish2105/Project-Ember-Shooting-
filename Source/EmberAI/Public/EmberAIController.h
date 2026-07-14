@@ -34,4 +34,5 @@ protected:
     float FireCooldown = 0.0f;
     float PatrolAngle = 0.0f;
     float FlankDirection = 1.0f;
+    bool bFacingAlignmentLogged = false;
 };

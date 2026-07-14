@@ -43,6 +43,7 @@ void AEmberAIController::OnPossess(APawn* InPawn)
     PatrolAnchor = InPawn ? InPawn->GetActorLocation() : FVector::ZeroVector;
     PatrolAngle = FMath::FRandRange(0.0f, TWO_PI);
     FlankDirection = FMath::RandBool() ? 1.0f : -1.0f;
+    bFacingAlignmentLogged = false;
     if (InPawn && !InPawn->FindComponentByClass<UEmberTacticalStateComponent>())
     {
         UE_LOG(LogTemp, Warning, TEXT("AI pawn %s has no Ember tactical state component."), *InPawn->GetName());
@@ -92,6 +93,23 @@ void AEmberAIController::Tick(float DeltaSeconds)
     const float Distance = ToTarget.Size2D();
     const FVector TowardTarget = ToTarget.GetSafeNormal2D();
     const FVector Lateral = FVector::CrossProduct(TowardTarget, FVector::UpVector).GetSafeNormal2D();
+    if (!TowardTarget.IsNearlyZero())
+    {
+        // Keep the capsule, Manny forward basis, weapon and authoritative shot
+        // direction aligned. Relying on focus alone left placed World Partition
+        // enemies at their serialized 180-degree spawn yaw on some launches.
+        const FRotator TargetFacing(0.0f, TowardTarget.Rotation().Yaw, 0.0f);
+        SetControlRotation(TargetFacing);
+        ControlledPawn->SetActorRotation(TargetFacing, ETeleportType::None);
+        if (!bFacingAlignmentLogged)
+        {
+            bFacingAlignmentLogged = true;
+            const float FacingDot = FVector::DotProduct(
+                ControlledPawn->GetActorForwardVector().GetSafeNormal2D(), TowardTarget);
+            UE_LOG(LogEmberAI, Log, TEXT("Enemy facing aligned: %s target=%s dot=%.3f"),
+                *ControlledPawn->GetName(), *Target->GetName(), FacingDot);
+        }
+    }
     FVector Destination = Target->GetActorLocation() - TowardTarget * DesiredCombatRange;
     bool bEmergencySeparation = false;
     if (Distance < MinimumCombatRange)
