@@ -7,7 +7,7 @@ public class EmberUI : ModuleRules
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
         PublicDependencyModuleNames.AddRange(new[] {
             "Core", "CoreUObject", "Engine", "UMG", "Slate", "SlateCore",
-            "CommonUI", "CommonInput", "EnhancedInput", "EmberCore", "EmberGameplay"
+            "EnhancedInput", "EmberCore", "EmberGameplay"
         });
     }
 }

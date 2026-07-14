@@ -21,6 +21,22 @@
 #include "Sound/SoundWaveProcedural.h"
 #include "UObject/ConstructorHelpers.h"
 
+namespace
+{
+    UEmberWeaponDefinition* LoadWeaponDefinition(const FName Identifier, const TCHAR* AssetName)
+    {
+        const FPrimaryAssetId AssetId(TEXT("EmberWeapon"), Identifier);
+        const FSoftObjectPath ManagedPath = UAssetManager::Get().GetPrimaryAssetPath(AssetId);
+        if (UEmberWeaponDefinition* Managed = Cast<UEmberWeaponDefinition>(ManagedPath.TryLoad()))
+        {
+            return Managed;
+        }
+        const FString DirectPath = FString::Printf(
+            TEXT("/Game/Ember/Weapons/%s.%s"), AssetName, AssetName);
+        return LoadObject<UEmberWeaponDefinition>(nullptr, *DirectPath);
+    }
+}
+
 AEmberCharacter::AEmberCharacter()
 {
     PrimaryActorTick.bCanEverTick = false;
@@ -149,14 +165,8 @@ void AEmberCharacter::ToggleCrouch() { bIsCrouched ? UnCrouch() : Crouch(); }
 void AEmberCharacter::InitializeStarterWeapon()
 {
     if (!Weapon) return;
-    UEmberWeaponDefinition* Starter = LoadObject<UEmberWeaponDefinition>(nullptr,
-        TEXT("/Game/Ember/Weapons/DA_Weapon_AshlineA4.DA_Weapon_AshlineA4"));
-    if (!Starter)
-    {
-        const FPrimaryAssetId StarterId(TEXT("EmberWeapon"), TEXT("Weapon.AshlineA4"));
-        const FSoftObjectPath AssetPath = UAssetManager::Get().GetPrimaryAssetPath(StarterId);
-        Starter = Cast<UEmberWeaponDefinition>(AssetPath.TryLoad());
-    }
+    UEmberWeaponDefinition* Starter = LoadWeaponDefinition(
+        TEXT("Weapon.AshlineA4"), TEXT("DA_Weapon_AshlineA4"));
     if (!Starter)
     {
         Starter = NewObject<UEmberWeaponDefinition>(this, TEXT("FallbackStarterWeapon"));
@@ -261,9 +271,12 @@ void AEmberCharacter::EquipWeaponIndex(int32 Index)
         TEXT("DA_Weapon_AshlineA4"), TEXT("DA_Weapon_SparrowC9"), TEXT("DA_Weapon_BreachP12"),
         TEXT("DA_Weapon_VigilD3"), TEXT("DA_Weapon_ForgeL5"), TEXT("DA_Weapon_HarborS9")
     };
+    static const TCHAR* Identifiers[] = {
+        TEXT("Weapon.AshlineA4"), TEXT("Weapon.SparrowC9"), TEXT("Weapon.BreachP12"),
+        TEXT("Weapon.VigilD3"), TEXT("Weapon.ForgeL5"), TEXT("Weapon.HarborS9")
+    };
     if (!Weapon || Index < 0 || Index >= UE_ARRAY_COUNT(Assets)) return;
-    const FString Path = FString::Printf(TEXT("/Game/Ember/Weapons/%s.%s"), Assets[Index], Assets[Index]);
-    UEmberWeaponDefinition* Definition = LoadObject<UEmberWeaponDefinition>(nullptr, *Path);
+    UEmberWeaponDefinition* Definition = LoadWeaponDefinition(Identifiers[Index], Assets[Index]);
     if (!Definition)
     {
         static const TCHAR* Names[] = {
