@@ -11,9 +11,10 @@
 - Editor assets/maps: harbor map and Blueprint classes regenerated through Unreal Editor scripting. The generated GameMode explicitly selects `AEmberPlayerController` and the third-person pawn.
 - Player foundation correction: removed forced flying, zero gravity, planar movement, forced possession and duplicate combat-input polling. Normal walking gravity, a single action-binding path and packaged game-focus controller are active.
 - Animation correction: removed the missing template C++ parent dependency and single-node locomotion override. The generated mannequin now uses its available locomotion Animation Blueprint.
-- Packaging correction: explicit Ember cook inclusion places all twelve weapon Primary Data Assets in the arm64 app. The current corrected build is `Releases/Development/20260714T005152Z`, SHA-256 `b569c950dcd0e444bf63a8d2b0b0730a618a60e687d20d6f674f6380ce8f3d04`.
+- Packaging correction: explicit Ember cook inclusion places all twelve weapon Primary Data Assets in the arm64 app. The current corrected build is `Releases/Development/20260714T010932Z`, SHA-256 `a003481244aa55c1f069d9c52a9ac09d116cbb67dc3afa1c085ec2f912257f69`.
 - Combat feedback correction: aim is a capture-safe toggle with a 68-degree FOV transition; the functional weapon silhouette, muzzle flash, tracer, impact light, hostile reticle and hit marker are implemented. Three visible marked hostiles form the insertion patrol.
 - Packaged keyboard/mouse evidence: a fresh extraction loaded the harbor, then synthetic macOS HID events produced runtime records `Player aim toggled: AIM`, `Player weapon fired; magazine=29 reserve=180`, and `Player reload requested: STARTED`. This proves the packaged bindings/state transitions without mislabeling it as a human playtest.
+- Packaged switching evidence: slot 1 fired to 29, slot 2 equipped/fired to 29, and slot 1 re-equipped at 29 before reload started. This proves that 1–6 selection does not refill a previously used slot.
 - Remaining M0 certification evidence: physical Xbox-layout and PlayStation-layout controller records.
 
 ## Remaining milestones
