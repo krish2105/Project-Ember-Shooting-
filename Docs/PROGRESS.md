@@ -33,3 +33,9 @@
 - Remaining: full encounter-by-encounter packaged playthrough, cover/EQS validation, checkpoint migration/corruption recovery, extraction/results acceptance and navigation/HLOD/Data Layer validation.
 
 M5–M9 remain incomplete. Prototype systems or configuration may exist, but none are certified until their acceptance tests pass in a packaged build.
+
+## Reference-quality combat slice request
+
+- Planned on 2026-07-14 as six work packages in `Docs/IMPLEMENTATION_PLAN.md`: camera/targeting, weapon animation, shot feedback, enemy reactions, an original indoor encounter, and release validation.
+- The supplied cinematic firefight image is used only to identify interaction and presentation qualities. No proprietary character, room, animation, audio, dialogue or UI from the reference has been imported or approved.
+- Current status: the known-good rifle input/damage path and two-handed template stance are foundations only. The new indoor encounter, six final weapon presentations, full Niagara/audio stack, physical hit reactions, localized captions and complete device/performance evidence are not implemented and must not be reported as complete.

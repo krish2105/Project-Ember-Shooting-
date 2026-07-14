@@ -21,3 +21,7 @@
 | Unnotarized public build | High | Document Gatekeeper flow; never claim notarization |
 | Tactical AI plus World Partition navigation | High | Use bounded navigation regions for all critical encounters |
 | Controller hardware results not yet recorded | High | Require physical Xbox-layout and PlayStation-layout boot-to-results tests |
+| Reference image could be mistaken for permission to copy a commercial game | Critical | Reproduce only general interaction qualities; require original or individually licensed characters, room, weapons, animation, audio, dialogue and UI |
+| Cinematic effects can hide shot-alignment or state bugs | High | Validate camera/muzzle rays and authoritative damage separately; require packaged interaction evidence, not screenshots alone |
+| Physical hit reactions can destabilize AI navigation and collision | High | Use bounded additive reactions and physical-animation profiles; reserve ragdoll for validated death states |
+| Indoor effects exceed Mac frame/audio budgets | High | Pool effects, cap decals/lights/voices, provide independent scalability fallbacks and profile the authored encounter |
