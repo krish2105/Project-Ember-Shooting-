@@ -36,6 +36,14 @@
 
 M5–M9 remain incomplete. Prototype systems or configuration may exist, but none are certified until their acceptance tests pass in a packaged build.
 
+## External environment asset pipeline
+
+- Added a dry-run-by-default Meshy Text-to-3D v2 client for the approved ruined pillar, crane ruin and rubble pile prompts. It implements preview/refine polling, PBR/HD texture requests, resumable task IDs, FBX/texture downloads and SHA-256 manifests without adding a runtime dependency.
+- Added a Blender 5.1 staging script that imports the three generated FBX/PBR sets, builds Principled materials, instances the requested layout and renders a 1280 × 720 review frame while preserving unrelated scene collections.
+- Validation on 2026-07-14: both Python files compile; the dry-run emitted all three bounded requests; the real execution gate correctly rejected a missing `MESHY_API_KEY`; and Blender 5.1.2 completed an offline end-to-end import/material/placement/save/render smoke test using disposable primitives under `/tmp`. A separate missing-input run correctly returned non-zero. Unreal Turnkey accepted the Mac SDK and content validation completed with 0 errors (one existing console-variable priority warning). The disposable smoke fixtures are test evidence only and are not project or Meshy assets.
+- Connection status: no Blender, Unity, Unreal or Meshy MCP tool is registered in the active Codex session. A Blender 5.1.2 GUI process is open but has no Codex MCP tool/listening socket, Unity Editor is not running, and host `blender-mcp` processes belong to a separate Claude session. No live scene object list, Unity hierarchy, paid Meshy task, downloaded model, real-asset preview render or Unreal import is therefore claimed.
+- Full procedure and intake gates are recorded in `Docs/GENERATED_ASSET_PIPELINE.md`.
+
 ## Reference-quality combat slice request
 
 - Planned on 2026-07-14 as six work packages in `Docs/IMPLEMENTATION_PLAN.md`: camera/targeting, weapon animation, shot feedback, enemy reactions, an original indoor encounter, and release validation.

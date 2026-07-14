@@ -30,3 +30,9 @@ Releases/
 Config/DefaultEngine.local.ini
 Config/DefaultGame.local.ini
 
+# Generated external art staging (retain instructions only)
+Assets/Imported/*.fbx
+Assets/Imported/*.png
+Assets/Imported/*.blend
+Assets/Imported/meshy_tasks.json
+Assets/Imported/asset_manifest.json
