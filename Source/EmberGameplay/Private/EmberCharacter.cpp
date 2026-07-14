@@ -72,11 +72,12 @@ AEmberCharacter::AEmberCharacter()
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(
         TEXT("/Engine/BasicShapes/Cube.Cube"));
-    // The presentation mesh follows Manny's right hand. Its actual licensed
-    // mesh is assigned by the generated character Blueprint, keeping content
-    // references out of runtime gameplay code.
+    // The Shooter Variant animation rig authors the weapon alignment around
+    // HandGrip_R. Attaching to the raw hand_r bone leaves the rifle ninety
+    // degrees across the torso because that bone has no weapon-facing socket
+    // basis.
     WeaponBodyVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponBodyVisual"));
-    WeaponBodyVisual->SetupAttachment(GetMesh(), TEXT("hand_r"));
+    WeaponBodyVisual->SetupAttachment(GetMesh(), TEXT("HandGrip_R"));
     WeaponBodyVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     WeaponBodyVisual->SetRelativeLocation(FVector::ZeroVector);
     WeaponBodyVisual->SetRelativeRotation(FRotator::ZeroRotator);
@@ -133,9 +134,12 @@ void AEmberCharacter::BeginPlay()
     Weapon->OnShotResolved.AddDynamic(this, &AEmberCharacter::HandleShotResolved);
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
+        // A packaged relaunch must not inherit a stale extreme look pitch from
+        // the previous session/window capture. Start every mission from the
+        // authored third-person horizon and then hand control back to input.
+        PC->SetControlRotation(FRotator(0.0f, GetActorRotation().Yaw, 0.0f));
         PC->bShowMouseCursor = false;
         PC->SetInputMode(FInputModeGameOnly());
-        PC->SetIgnoreLookInput(false);
         PC->SetIgnoreMoveInput(false);
     }
 }

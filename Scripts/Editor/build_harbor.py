@@ -9,10 +9,142 @@ CHARACTER_NAME = "BP_EmberCharacter"
 GAMEMODE_NAME = "BP_EmberGameMode"
 HARBOR_ASSET = f"{MAP_PATH}/L_HarborVerticalSlice"
 ACTOR_SUBSYSTEM = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+MATERIAL_PATH = f"{ROOT}/Materials"
+MATERIALS = {}
 
 
 def log(message):
     unreal.log(f"[PROJECT EMBER] {message}")
+
+
+def ensure_surface_material(name, base_color, roughness, metallic=0.0, emissive=None):
+    """Create an original procedural PBR material through the Editor API."""
+    object_path = f"{MATERIAL_PATH}/{name}"
+    # These assets are generator-owned. Recreate them so art-direction changes
+    # are deterministic instead of silently retaining an older flat material.
+    if unreal.EditorAssetLibrary.does_asset_exist(object_path):
+        if not unreal.EditorAssetLibrary.delete_asset(object_path):
+            raise RuntimeError(f"Unable to replace material {object_path}")
+    factory = unreal.MaterialFactoryNew()
+    material = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+        name, MATERIAL_PATH, unreal.Material, factory
+    )
+    if not material:
+        raise RuntimeError(f"Unable to create material {object_path}")
+
+    dark = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionConstant3Vector, -420, -40
+    )
+    dark_color = tuple(max(0.001, channel * 0.48) for channel in base_color)
+    light_color = tuple(min(1.0, channel * 1.55 + 0.012) for channel in base_color)
+    dark.set_editor_property("constant", unreal.LinearColor(*dark_color, 1.0))
+    light = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionConstant3Vector, -420, 45
+    )
+    light.set_editor_property("constant", unreal.LinearColor(*light_color, 1.0))
+    world_position = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionWorldPosition, -680, 160
+    )
+    noise = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionNoise, -420, 160
+    )
+    noise.set_editor_property("scale", 0.0025)
+    noise.set_editor_property("quality", 1)
+    noise.set_editor_property("levels", 3)
+    noise.set_editor_property("output_min", 0.08)
+    noise.set_editor_property("output_max", 0.92)
+    unreal.MaterialEditingLibrary.connect_material_expressions(
+        world_position, "", noise, "Position"
+    )
+    variation = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionLinearInterpolate, -120, 20
+    )
+    unreal.MaterialEditingLibrary.connect_material_expressions(dark, "", variation, "A")
+    unreal.MaterialEditingLibrary.connect_material_expressions(light, "", variation, "B")
+    unreal.MaterialEditingLibrary.connect_material_expressions(noise, "", variation, "Alpha")
+    unreal.MaterialEditingLibrary.connect_material_property(
+        variation, "", unreal.MaterialProperty.MP_BASE_COLOR
+    )
+    rough = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionConstant, -420, 80
+    )
+    rough.set_editor_property("r", roughness)
+    unreal.MaterialEditingLibrary.connect_material_property(
+        rough, "", unreal.MaterialProperty.MP_ROUGHNESS
+    )
+    metal = unreal.MaterialEditingLibrary.create_material_expression(
+        material, unreal.MaterialExpressionConstant, -420, 180
+    )
+    metal.set_editor_property("r", metallic)
+    unreal.MaterialEditingLibrary.connect_material_property(
+        metal, "", unreal.MaterialProperty.MP_METALLIC
+    )
+    if emissive:
+        glow = unreal.MaterialEditingLibrary.create_material_expression(
+            material, unreal.MaterialExpressionConstant3Vector, -420, 290
+        )
+        glow.set_editor_property("constant", unreal.LinearColor(*emissive, 1.0))
+        unreal.MaterialEditingLibrary.connect_material_property(
+            glow, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR
+        )
+    unreal.MaterialEditingLibrary.recompile_material(material)
+    unreal.EditorAssetLibrary.save_loaded_asset(material)
+    return material
+
+
+def configure_material_library():
+    unreal.EditorAssetLibrary.make_directory(MATERIAL_PATH)
+    definitions = {
+        "asphalt": ("M_WetAsphalt", (0.012, 0.018, 0.024), 0.24, 0.0, None),
+        "limestone": ("M_WeatheredLimestone", (0.19, 0.18, 0.16), 0.72, 0.0, None),
+        "concrete": ("M_DamagedConcrete", (0.075, 0.085, 0.09), 0.82, 0.0, None),
+        "rubble": ("M_Rubble", (0.095, 0.075, 0.06), 0.88, 0.0, None),
+        "steel": ("M_PaintedSteel", (0.018, 0.035, 0.045), 0.38, 0.88, None),
+        "rust": ("M_RustedSteel", (0.12, 0.035, 0.012), 0.58, 0.78, None),
+        "burnt": ("M_BurntMetal", (0.008, 0.008, 0.009), 0.7, 0.82, None),
+        "container_red": ("M_ContainerRed", (0.18, 0.012, 0.008), 0.5, 0.72, None),
+        "container_blue": ("M_ContainerBlue", (0.008, 0.055, 0.12), 0.46, 0.72, None),
+        "container_orange": ("M_ContainerOrange", (0.24, 0.045, 0.004), 0.52, 0.7, None),
+        "water": ("M_HarborWater", (0.002, 0.025, 0.045), 0.08, 0.15, None),
+        "vegetation": ("M_DarkVegetation", (0.008, 0.045, 0.018), 0.86, 0.0, None),
+        "cyan": ("M_EmissiveCyan", (0.005, 0.08, 0.11), 0.2, 0.25, (0.0, 7.0, 12.0)),
+        "orange": ("M_EmissiveOrange", (0.16, 0.018, 0.002), 0.28, 0.15, (14.0, 1.6, 0.08)),
+        "window": ("M_DarkWindow", (0.002, 0.008, 0.014), 0.06, 0.35, None),
+    }
+    for key, values in definitions.items():
+        MATERIALS[key] = ensure_surface_material(*values)
+
+
+def choose_material(label):
+    if label in ("Harbor_Ground", "Insertion_Foundation", "Warehouse_Floor") or "Road" in label:
+        return MATERIALS.get("asphalt")
+    if label == "Harbor_Waterfront":
+        return MATERIALS.get("water")
+    if label.startswith("Container_Red"):
+        return MATERIALS.get("container_red")
+    if label.startswith("Container_Blue"):
+        return MATERIALS.get("container_blue")
+    if label.startswith("Container_Orange"):
+        return MATERIALS.get("container_orange")
+    if label.startswith("Neon_") or label.endswith("ExitMarker") or "CyanFixture" in label:
+        return MATERIALS.get("cyan")
+    if "FireCore" in label or "OrangeFixture" in label:
+        return MATERIALS.get("orange")
+    if any(token in label for token in ("Window", "InteriorVoid")):
+        return MATERIALS.get("window")
+    if any(token in label for token in ("Column", "Palace", "Cornice", "Arcade", "Civic", "SeaWall")):
+        return MATERIALS.get("limestone")
+    if any(token in label for token in ("Rubble", "Debris", "Brick")):
+        return MATERIALS.get("rubble")
+    if any(token in label for token in ("Crane", "Pipe", "Rail", "Truss", "Bollard", "Lamp")):
+        return MATERIALS.get("rust")
+    if any(token in label for token in ("Wreck", "Burnt")):
+        return MATERIALS.get("burnt")
+    if any(token in label for token in ("Tree", "Canopy", "Vegetation")):
+        return MATERIALS.get("vegetation")
+    if any(token in label for token in ("Warehouse", "Stairwell", "Cover", "Barrier", "Facade", "Wall", "Floor")):
+        return MATERIALS.get("concrete")
+    return MATERIALS.get("steel")
 
 
 def create_blueprint(name, package_path, parent_class):
@@ -62,7 +194,7 @@ def configure_character_blueprint():
     mesh_component.set_simulate_physics(False)
     weapon_component = cdo.get_editor_property("weapon_body_visual")
     weapon_component.set_editor_property(
-        "relative_rotation", unreal.Rotator(pitch=0.0, yaw=90.0, roll=0.0)
+        "relative_rotation", unreal.Rotator(pitch=0.0, yaw=0.0, roll=0.0)
     )
     primary_weapon = unreal.load_asset("/Game/Weapons/Rifle/Meshes/SM_Rifle")
     sidearm_weapon = unreal.load_asset("/Game/Weapons/Pistol/Meshes/SM_Pistol")
@@ -81,12 +213,12 @@ def configure_character_blueprint():
     cdo.set_editor_property(
         "weapon_presentation_transforms",
         [
-            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 90.0, 0.0), scale=unreal.Vector(1.0, 1.0, 1.0)),
-            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 90.0, 0.0), scale=unreal.Vector(0.86, 0.92, 0.92)),
-            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 90.0, 0.0), scale=unreal.Vector(0.96, 1.18, 1.10)),
-            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 90.0, 0.0), scale=unreal.Vector(1.12, 0.94, 0.94)),
-            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 90.0, 0.0), scale=unreal.Vector(1.08, 1.06, 1.08)),
-            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 90.0, 0.0), scale=unreal.Vector(1.0, 1.0, 1.0)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 0.0, 0.0), scale=unreal.Vector(1.18, 1.18, 1.18)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 0.0, 0.0), scale=unreal.Vector(1.08, 1.14, 1.14)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 0.0, 0.0), scale=unreal.Vector(1.14, 1.3, 1.22)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 0.0, 0.0), scale=unreal.Vector(1.22, 1.1, 1.1)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 0.0, 0.0), scale=unreal.Vector(1.2, 1.22, 1.18)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 0.0, 0.0), scale=unreal.Vector(1.08, 1.08, 1.08)),
         ],
     )
     unreal.BlueprintEditorLibrary.compile_blueprint(blueprint)
@@ -130,7 +262,7 @@ def persistent(actor):
     return actor
 
 
-def spawn_mesh(mesh, label, location, scale, rotation=None, collision=True):
+def spawn_mesh(mesh, label, location, scale, rotation=None, collision=True, material=None):
     rotation = rotation or unreal.Rotator(0.0, 0.0, 0.0)
     actor = ACTOR_SUBSYSTEM.spawn_actor_from_class(
         unreal.StaticMeshActor, location, rotation, transient=False
@@ -146,22 +278,7 @@ def spawn_mesh(mesh, label, location, scale, rotation=None, collision=True):
     component.set_collision_enabled(
         unreal.CollisionEnabled.QUERY_AND_PHYSICS if collision else unreal.CollisionEnabled.NO_COLLISION
     )
-    if label in ("Harbor_Ground", "Insertion_Foundation", "Warehouse_Floor"):
-        material = unreal.load_asset(
-            "/Game/LevelPrototyping/Materials/MI_PrototypeGrid_Gray"
-        )
-    elif label.startswith("Container_") or "Cover" in label:
-        material = unreal.load_asset(
-            "/Game/LevelPrototyping/Materials/MI_PrototypeGrid_TopDark"
-        )
-    elif label.startswith("Neon_") or label.endswith("ExitMarker"):
-        material = unreal.load_asset(
-            "/Game/LevelPrototyping/Interactable/JumpPad/Assets/Materials/MI_GlowNT"
-        )
-    else:
-        material = unreal.load_asset(
-            "/Game/LevelPrototyping/Materials/MI_PrototypeGrid_TopDark"
-        )
+    material = material or choose_material(label)
     if material:
         component.set_material(0, material)
     generated(actor, label)
@@ -175,9 +292,275 @@ def spawn_mesh(mesh, label, location, scale, rotation=None, collision=True):
 
 
 def remove_previous_generated_actors():
+    # The source Open World template contains its own sun, sky, fog and post
+    # process actors. Keeping those actors while also creating the authored
+    # Ember rig doubles the exposure and was the reason the packaged map was
+    # flat orange/white. Environment actors are fully owned by this generator,
+    # so remove both tagged instances and untagged template defaults.
+    environment_classes = (
+        unreal.DirectionalLight,
+        unreal.SkyLight,
+        unreal.SkyAtmosphere,
+        unreal.ExponentialHeightFog,
+        unreal.VolumetricCloud,
+        unreal.PostProcessVolume,
+        unreal.PointLight,
+    )
     for actor in unreal.EditorLevelLibrary.get_all_level_actors():
-        if unreal.Name("EmberGenerated") in actor.get_editor_property("tags"):
+        is_generated = unreal.Name("EmberGenerated") in actor.get_editor_property("tags")
+        is_environment = isinstance(actor, environment_classes)
+        if is_generated or is_environment:
             unreal.EditorLevelLibrary.destroy_actor(actor)
+
+
+def spawn_practical_light(label, location, color, intensity=18000.0, radius=6500.0):
+    light = ACTOR_SUBSYSTEM.spawn_actor_from_class(
+        unreal.PointLight, location, unreal.Rotator(0, 0, 0), transient=False
+    )
+    if not light:
+        return None
+    generated(light, label)
+    persistent(light)
+    component = light.get_editor_property("point_light_component")
+    component.set_editor_property("intensity", intensity)
+    component.set_editor_property("attenuation_radius", radius)
+    component.set_editor_property("light_color", color)
+    try:
+        component.set_editor_property("cast_shadows", False)
+    except Exception:
+        pass
+    return light
+
+
+def assemble_foreground_city(cube, cylinder, sphere, chamfer):
+    """Build a dense, original ruined waterfront foreground around insertion."""
+    # Dark paved combat road and raised sidewalks replace the visible white grid.
+    spawn_mesh(cube, "MainCombatRoad", unreal.Vector(-4000, 0, 5), unreal.Vector(920, 82, 0.18))
+    for side in (-1, 1):
+        spawn_mesh(
+            cube, f"Arcade_Sidewalk_{side}", unreal.Vector(-9000, side * 9200, 38),
+            unreal.Vector(820, 95, 0.75),
+        )
+
+    # Left neo-classical ruin: three storeys, repeated bays, columns and a
+    # collapsed corner. The route remains open down the middle for combat.
+    palace_y = 10500
+    for floor in range(4):
+        spawn_mesh(
+            cube, f"Palace_Floor_{floor:02d}",
+            unreal.Vector(-27500, palace_y, 80 + floor * 850),
+            unreal.Vector(185, 62, 1.4), collision=floor == 0,
+        )
+    for bay in range(8):
+        x = -43000 + bay * 4500
+        damage = bay in (1, 6)
+        for storey in range(3):
+            z = 480 + storey * 850
+            if damage and storey >= 1:
+                continue
+            spawn_mesh(
+                cube, f"Palace_Facade_{bay:02d}_{storey:02d}",
+                unreal.Vector(x, palace_y - 2700, z),
+                unreal.Vector(17, 3, 7.2), collision=True,
+            )
+            spawn_mesh(
+                cube, f"Palace_Window_{bay:02d}_{storey:02d}",
+                unreal.Vector(x, palace_y - 3005, z + 55),
+                unreal.Vector(6.5, 0.35, 4.5), collision=False,
+            )
+        if bay % 2 == 0 and not damage:
+            spawn_mesh(
+                cylinder, f"Palace_Column_{bay:02d}",
+                unreal.Vector(x - 1150, palace_y - 3550, 930),
+                unreal.Vector(2.8, 2.8, 18.0), collision=True,
+            )
+            spawn_mesh(
+                cylinder, f"Palace_ColumnCap_{bay:02d}",
+                unreal.Vector(x - 1150, palace_y - 3550, 1820),
+                unreal.Vector(4.2, 4.2, 1.2), collision=False,
+            )
+    for level in (840, 1690, 2540):
+        spawn_mesh(
+            cube, f"Palace_Cornice_{level}", unreal.Vector(-27500, palace_y - 3080, level),
+            unreal.Vector(190, 4.5, 0.65), collision=False,
+        )
+
+    # Right industrial frontage provides close camera parallax and cover.
+    industrial_y = -10500
+    for bay in range(9):
+        x = -43000 + bay * 5200
+        height = 1450 + (bay % 3) * 360
+        spawn_mesh(
+            cube, f"Warehouse_Facade_{bay:02d}", unreal.Vector(x, industrial_y, height * 0.5),
+            unreal.Vector(22, 22, height / 100.0), collision=True,
+        )
+        spawn_mesh(
+            cube, f"Warehouse_InteriorVoid_{bay:02d}",
+            unreal.Vector(x, industrial_y + 2210, 520),
+            unreal.Vector(11, 0.4, 7.5), collision=False,
+        )
+        for rail in range(3):
+            spawn_mesh(
+                cube, f"Warehouse_Truss_{bay:02d}_{rail:02d}",
+                unreal.Vector(x, industrial_y + 2350, 1100 + rail * 280),
+                unreal.Vector(20, 0.45, 0.45), collision=False,
+                material=MATERIALS.get("rust"),
+            )
+
+    # Wrecks and rubble establish readable combat cover at human scale.
+    wrecks = [(-34500, -2800, -8), (-18500, 3200, 12), (2500, -2400, -15), (14500, 3400, 5)]
+    for index, (x, y, yaw) in enumerate(wrecks):
+        spawn_mesh(
+            chamfer, f"WreckedCar_Body_{index:02d}", unreal.Vector(x, y, 105),
+            unreal.Vector(22, 9, 2.2), unreal.Rotator(0, yaw, 0), collision=True,
+        )
+        spawn_mesh(
+            cube, f"WreckedCar_Cabin_{index:02d}", unreal.Vector(x - 150, y, 260),
+            unreal.Vector(9, 7.5, 2.0), unreal.Rotator(0, yaw, 0), collision=False,
+            material=MATERIALS.get("window"),
+        )
+        for wheel in (-1, 1):
+            spawn_mesh(
+                cylinder, f"WreckedCar_Wheel_{index:02d}_{wheel}",
+                unreal.Vector(x + wheel * 650, y - 760, 75),
+                unreal.Vector(2.6, 2.6, 1.8), unreal.Rotator(90, yaw, 0),
+                collision=False, material=MATERIALS.get("burnt"),
+            )
+
+    rubble_centers = [
+        (-40500, 6900), (-35000, 8200), (-29200, -7200), (-23000, 7600),
+        (-14500, -6900), (-6500, 7000), (4500, -7100), (12500, 7200),
+    ]
+    for pile, (x, y) in enumerate(rubble_centers):
+        for chunk in range(7):
+            angle = math.radians((pile * 47 + chunk * 71) % 360)
+            radius = 180 + (chunk % 3) * 210
+            spawn_mesh(
+                chamfer, f"Rubble_{pile:02d}_{chunk:02d}",
+                unreal.Vector(x + math.cos(angle) * radius, y + math.sin(angle) * radius, 65 + (chunk % 2) * 45),
+                unreal.Vector(2.2 + (chunk % 3), 1.8 + ((chunk + 1) % 3), 0.8 + (chunk % 2)),
+                unreal.Rotator((chunk * 13) % 24, (chunk * 57) % 180, (chunk * 9) % 20),
+                collision=chunk < 3,
+            )
+        spawn_mesh(
+            cylinder, f"Rubble_Rebar_{pile:02d}", unreal.Vector(x + 100, y - 80, 180),
+            unreal.Vector(0.22, 0.22, 7.0), unreal.Rotator(62, pile * 31, 0),
+            collision=False, material=MATERIALS.get("rust"),
+        )
+
+    # The insertion must read as a combat space on the first frame rather than
+    # an empty runway. A broken checkpoint, staggered cover and wet patches
+    # create close parallax while preserving a 6 m-wide traversal channel.
+    for side in (-1, 1):
+        gate_y = side * 5150
+        spawn_mesh(
+            cube, f"InsertionGate_Pier_{side}", unreal.Vector(-43200, gate_y, 1150),
+            unreal.Vector(15, 15, 23), collision=True,
+        )
+        spawn_mesh(
+            cylinder, f"InsertionGate_Column_{side}", unreal.Vector(-42300, gate_y - side * 1550, 1050),
+            unreal.Vector(3.8, 3.8, 21), collision=True,
+        )
+        spawn_mesh(
+            cube, f"InsertionGate_BrokenBeam_{side}", unreal.Vector(-42100, gate_y - side * 900, 2260),
+            unreal.Vector(24, 3, 2.2), unreal.Rotator(0, side * 8, side * 5),
+            collision=False,
+        )
+
+    cover_layout = [
+        (-40700, -2700, 7), (-39200, 3100, -11), (-36700, -1800, 4),
+        (-34400, 2600, -8), (-31800, -3200, 12), (-28800, 2200, -5),
+        (-25500, -2500, 6), (-22000, 3100, -10),
+    ]
+    for index, (x, y, yaw) in enumerate(cover_layout):
+        spawn_mesh(
+            chamfer, f"RoadCover_Barrier_{index:02d}", unreal.Vector(x, y, 105),
+            unreal.Vector(19, 4.2, 2.1), unreal.Rotator(0, yaw, 0), collision=True,
+            material=MATERIALS.get("concrete"),
+        )
+        if index % 2 == 0:
+            for barrel in range(3):
+                spawn_mesh(
+                    cylinder, f"RoadCover_Barrel_{index:02d}_{barrel}",
+                    unreal.Vector(x + 360 + barrel * 125, y + 520, 92),
+                    unreal.Vector(1.15, 1.15, 1.85), collision=True,
+                    material=MATERIALS.get("rust"),
+                )
+
+    for index, (x, y, sx, sy) in enumerate([
+        (-41800, 600, 28, 16), (-38200, -4100, 42, 13),
+        (-32800, 4200, 34, 18), (-27100, -3900, 48, 14),
+        (-20500, 1200, 55, 20),
+    ]):
+        spawn_mesh(
+            cube, f"Road_Puddle_{index:02d}", unreal.Vector(x, y, 24),
+            unreal.Vector(sx, sy, 0.035), collision=False,
+            material=MATERIALS.get("water"),
+        )
+
+    # Close wreck and pipe bundles break the silhouette of the entry lane.
+    spawn_mesh(
+        chamfer, "Insertion_WreckedTruck", unreal.Vector(-41400, 3550, 190),
+        unreal.Vector(32, 13, 3.4), unreal.Rotator(0, -13, 0), collision=True,
+        material=MATERIALS.get("burnt"),
+    )
+    spawn_mesh(
+        cube, "Insertion_WreckedTruckCab", unreal.Vector(-39900, 3550, 520),
+        unreal.Vector(10, 11, 6.2), unreal.Rotator(0, -13, 0), collision=True,
+        material=MATERIALS.get("rust"),
+    )
+    for pipe in range(5):
+        spawn_mesh(
+            cylinder, f"Insertion_PipeBundle_{pipe:02d}",
+            unreal.Vector(-37500 + pipe * 55, -4550, 150 + pipe * 25),
+            unreal.Vector(1.25, 1.25, 24), unreal.Rotator(90, 0, 0),
+            collision=pipe < 2, material=MATERIALS.get("rust"),
+        )
+
+    # Street lights, fire pockets and flooded cyan fixtures establish the
+    # cold/warm lighting language in the approved concept target.
+    for index, x in enumerate(range(-41000, 24000, 8000)):
+        side = -1 if index % 2 else 1
+        y = side * 7200
+        spawn_mesh(
+            cylinder, f"StreetLamp_Post_{index:02d}", unreal.Vector(x, y, 650),
+            unreal.Vector(0.45, 0.45, 13.0), collision=False,
+        )
+        spawn_mesh(
+            cube, f"CyanFixture_{index:02d}", unreal.Vector(x, y - side * 120, 1350),
+            unreal.Vector(2.4, 0.8, 0.35), collision=False,
+        )
+        spawn_practical_light(
+            f"StreetLamp_Light_{index:02d}", unreal.Vector(x, y, 1270),
+            unreal.Color(90, 180, 255, 255), 1100.0, 3600.0,
+        )
+
+    for index, (x, y) in enumerate(((-36500, 10100), (-12000, -7600), (9000, 7900), (22500, -6400))):
+        spawn_mesh(
+            sphere, f"FireCore_{index:02d}", unreal.Vector(x, y, 165),
+            unreal.Vector(1.2, 1.2, 2.1), collision=False,
+        )
+        spawn_practical_light(
+            f"FireLight_{index:02d}", unreal.Vector(x, y, 320),
+            unreal.Color(255, 92, 38, 255), 900.0, 2400.0,
+        )
+
+    # A recognizable ruined crane and distant civic dome anchor the skyline.
+    crane_x, crane_y = 26500, -25500
+    spawn_mesh(cube, "Crane_Base", unreal.Vector(crane_x, crane_y, 260), unreal.Vector(28, 28, 5.2))
+    for side in (-1, 1):
+        spawn_mesh(
+            cube, f"Crane_Mast_{side}", unreal.Vector(crane_x + side * 750, crane_y, 3650),
+            unreal.Vector(3.2, 3.2, 68), unreal.Rotator(0, side * 7, 0),
+        )
+    spawn_mesh(cube, "Crane_Jib", unreal.Vector(crane_x - 3800, crane_y, 7000), unreal.Vector(88, 3.2, 3.2), unreal.Rotator(0, -8, 4))
+    spawn_mesh(cylinder, "Crane_HookCable", unreal.Vector(crane_x - 7800, crane_y, 5200), unreal.Vector(0.18, 0.18, 36), collision=False)
+    spawn_mesh(sphere, "Crane_Hook", unreal.Vector(crane_x - 7800, crane_y, 3350), unreal.Vector(1.2, 1.2, 1.8), collision=False)
+
+    dome_x, dome_y = 33000, 36000
+    spawn_mesh(cylinder, "Civic_DomeDrum", unreal.Vector(dome_x, dome_y, 3200), unreal.Vector(42, 42, 62), collision=False)
+    spawn_mesh(sphere, "Civic_Dome", unreal.Vector(dome_x, dome_y, 6900), unreal.Vector(45, 45, 28), collision=False)
+    spawn_mesh(cylinder, "Civic_DomeSpire", unreal.Vector(dome_x, dome_y, 9100), unreal.Vector(2, 2, 25), collision=False)
 
 
 def assemble_harbor(game_mode_class):
@@ -202,7 +585,8 @@ def assemble_harbor(game_mode_class):
     sphere = unreal.load_asset("/Engine/BasicShapes/Sphere.Sphere")
     plane = unreal.load_asset("/Game/LevelPrototyping/Meshes/SM_Plane")
     ramp = unreal.load_asset("/Game/LevelPrototyping/Meshes/SM_Ramp")
-    if not cube or not cylinder or not sphere or not plane or not ramp:
+    chamfer = unreal.load_asset("/Game/LevelPrototyping/Meshes/SM_ChamferCube")
+    if not cube or not cylinder or not sphere or not plane or not ramp or not chamfer:
         raise RuntimeError("Prototype mesh pack is incomplete")
 
     # One-kilometre district base and waterfront.
@@ -211,6 +595,7 @@ def assemble_harbor(game_mode_class):
     # beneath PlayerStart even before navigation and distant systems initialize.
     spawn_mesh(cube, "Insertion_Foundation", unreal.Vector(-45000, 0, -50), unreal.Vector(160, 160, 1))
     spawn_mesh(plane, "Harbor_Waterfront", unreal.Vector(0, -47000, 0), unreal.Vector(500, 80, 1))
+    assemble_foreground_city(cube, cylinder, sphere, chamfer)
 
     # Tutorial insertion lane and an original security-office stairwell. The
     # previous office was one solid cube and could not support interior play.
@@ -379,15 +764,23 @@ def assemble_harbor(game_mode_class):
     sun = ACTOR_SUBSYSTEM.spawn_actor_from_class(
         unreal.DirectionalLight,
         unreal.Vector(0, 0, 18000),
-        unreal.Rotator(-12, -32, 0),
+        unreal.Rotator(roll=0.0, pitch=-52.0, yaw=-32.0),
         transient=False,
     )
     if sun:
         generated(sun, "Harbor_Sun")
         persistent(sun)
         sun_component = sun.get_editor_property("directional_light_component")
-        sun_component.set_editor_property("intensity", 2.4)
-        sun_component.set_editor_property("light_color", unreal.Color(105, 145, 255, 255))
+        sun_component.set_editor_property("intensity", 1.35)
+        sun_component.set_editor_property("light_color", unreal.Color(190, 215, 255, 255))
+        try:
+            sun_component.set_editor_property("atmosphere_sun_light", True)
+            sun_component.set_editor_property("use_temperature", True)
+            sun_component.set_editor_property("temperature", 9800.0)
+            sun_component.set_editor_property("source_angle", 3.0)
+            sun_component.set_editor_property("volumetric_scattering_intensity", 1.35)
+        except Exception:
+            pass
 
     skylight = ACTOR_SUBSYSTEM.spawn_actor_from_class(
         unreal.SkyLight,
@@ -399,7 +792,7 @@ def assemble_harbor(game_mode_class):
         generated(skylight, "Harbor_Skylight")
         persistent(skylight)
         sky_component = skylight.get_editor_property("light_component")
-        sky_component.set_editor_property("intensity", 0.38)
+        sky_component.set_editor_property("intensity", 0.9)
         sky_component.set_editor_property("real_time_capture", True)
 
     atmosphere = ACTOR_SUBSYSTEM.spawn_actor_from_class(
@@ -411,6 +804,16 @@ def assemble_harbor(game_mode_class):
     if atmosphere:
         generated(atmosphere, "Harbor_Atmosphere")
         persistent(atmosphere)
+
+    cloud = ACTOR_SUBSYSTEM.spawn_actor_from_class(
+        unreal.VolumetricCloud,
+        unreal.Vector(0, 0, 10000),
+        unreal.Rotator(0, 0, 0),
+        transient=False,
+    )
+    if cloud:
+        generated(cloud, "Harbor_StormClouds")
+        persistent(cloud)
 
     fog = ACTOR_SUBSYSTEM.spawn_actor_from_class(
         unreal.ExponentialHeightFog,
@@ -429,6 +832,32 @@ def assemble_harbor(game_mode_class):
         except Exception:
             pass
 
+    # Bounded gameplay grade: suppress the template's washed-out auto exposure
+    # while retaining readable silhouettes and practical lights.
+    post_process = ACTOR_SUBSYSTEM.spawn_actor_from_class(
+        unreal.PostProcessVolume,
+        unreal.Vector(0, 0, 1000),
+        unreal.Rotator(0, 0, 0),
+        transient=False,
+    )
+    if post_process:
+        generated(post_process, "Harbor_PostProcess")
+        persistent(post_process)
+        try:
+            post_process.set_editor_property("unbound", True)
+            settings = post_process.get_editor_property("settings")
+            settings.set_editor_property("override_auto_exposure_bias", True)
+            settings.set_editor_property("auto_exposure_bias", 0.15)
+            settings.set_editor_property("override_bloom_intensity", True)
+            settings.set_editor_property("bloom_intensity", 0.28)
+            settings.set_editor_property("override_vignette_intensity", True)
+            settings.set_editor_property("vignette_intensity", 0.18)
+            settings.set_editor_property("override_motion_blur_amount", True)
+            settings.set_editor_property("motion_blur_amount", 0.12)
+            post_process.set_editor_property("settings", settings)
+        except Exception as error:
+            unreal.log_warning(f"[PROJECT EMBER] Post process tuning fallback: {error}")
+
     for index, location in enumerate([
         unreal.Vector(-36000, 0, 1800),
         unreal.Vector(-12000, -12000, 2200),
@@ -443,12 +872,12 @@ def assemble_harbor(game_mode_class):
             generated(work_light, f"Harbor_WorkLight_{index:02d}")
             persistent(work_light)
             work_component = work_light.get_editor_property("point_light_component")
-            work_component.set_editor_property("intensity", 26000.0)
-            work_component.set_editor_property("attenuation_radius", 15000.0)
+            work_component.set_editor_property("intensity", 950.0)
+            work_component.set_editor_property("attenuation_radius", 6200.0)
             work_component.set_editor_property(
                 "light_color",
-                unreal.Color(45, 185, 255, 255)
-                if index % 2 == 0 else unreal.Color(255, 105, 32, 255),
+                unreal.Color(65, 175, 255, 255)
+                if index % 2 == 0 else unreal.Color(145, 190, 255, 255),
             )
 
     # Teal/orange pools lead the player across the authored combat route and
@@ -463,12 +892,12 @@ def assemble_harbor(game_mode_class):
             generated(route_light, f"Harbor_RouteLight_{index:02d}")
             persistent(route_light)
             component = route_light.get_editor_property("point_light_component")
-            component.set_editor_property("intensity", 12500.0)
-            component.set_editor_property("attenuation_radius", 6500.0)
+            component.set_editor_property("intensity", 750.0)
+            component.set_editor_property("attenuation_radius", 3600.0)
             component.set_editor_property(
                 "light_color",
-                unreal.Color(35, 205, 255, 255)
-                if index % 3 else unreal.Color(255, 82, 24, 255),
+                unreal.Color(45, 170, 255, 255)
+                if index % 3 else unreal.Color(120, 185, 255, 255),
             )
 
     nav = ACTOR_SUBSYSTEM.spawn_actor_from_class(
@@ -533,12 +962,13 @@ def assemble_harbor(game_mode_class):
 
     if not unreal.EditorLevelLibrary.save_current_level():
         raise RuntimeError("Unable to save harbor map")
-    log("Harbor vertical-slice blockout saved")
+    log("Harbor vertical-slice environment saved")
 
 
 def main():
     unreal.EditorAssetLibrary.make_directory(BLUEPRINT_PATH)
     unreal.EditorAssetLibrary.make_directory(MAP_PATH)
+    configure_material_library()
     character_class = configure_character_blueprint()
     game_mode_class = configure_game_mode(character_class)
     assemble_harbor(game_mode_class)

@@ -20,4 +20,6 @@ The directional enemy flinch is a bounded code-owned gameplay reaction, not a su
 
 The night skyline, neon route dressing, fog, barriers, pipes and vegetation are original Editor-generated composition geometry using Epic template/engine materials. They provide a coherent playable presentation pass but are not a substitute for final modular harbor architecture, authored props, surface materials, LODs or HLODs.
 
+The replacement harbor adds original procedural surface variation and a denser first-frame composition, but its architecture and props remain Editor-assembled primitives rather than commissioned photogrammetry or modeled hero art. It must be described as a development vertical-slice environment, not as photorealistic final AAA art.
+
 The Meshy/Blender source pipeline is implemented but has generated no assets because no Meshy credential is configured. The ruined pillar, industrial crane ruin and rubble pile remain pending source assets, not project content. Even after generation they require license registration, Blender cleanup, UV/material review, LODs, collision, cover metadata, Unreal Editor import and packaged performance validation. The remaining hero architecture, 70–90-piece modular kit, vehicles, street surfaces, props, decals and VFX in the approved environment specification are still unproduced.

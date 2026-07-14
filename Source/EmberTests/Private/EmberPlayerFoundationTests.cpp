@@ -66,8 +66,8 @@ bool FEmberPlayerWalkingFoundationTest::RunTest(const FString& Parameters)
     {
         TestTrue(TEXT("Weapon follows the skeletal character mesh"),
             WeaponVisual->GetAttachParent() == MutableCharacter->GetMesh());
-        TestEqual(TEXT("Weapon uses Manny's right-hand attachment"),
-            WeaponVisual->GetAttachSocketName(), FName(TEXT("hand_r")));
+        TestEqual(TEXT("Weapon uses the Shooter Variant grip socket"),
+            WeaponVisual->GetAttachSocketName(), FName(TEXT("HandGrip_R")));
     }
     const UStaticMeshComponent* TracerVisual = Cast<UStaticMeshComponent>(
         MutableCharacter->GetDefaultSubobjectByName(TEXT("WeaponBarrelVisual")));

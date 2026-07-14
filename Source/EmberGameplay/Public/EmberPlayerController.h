@@ -13,5 +13,8 @@ public:
     virtual void OnPossess(APawn* InPawn) override;
 
 private:
+    void ArmGameplayInput();
     void ActivateGameplayInput();
+
+    FTimerHandle GameplayInputActivationTimer;
 };
