@@ -33,6 +33,7 @@ public:
 private:
     void ArmGameplayInput();
     void ActivateGameplayInput();
+    void FocusGameplayViewport();
     UModularVehicleBaseComponent* GetVehicleSimulation() const;
     void ApplyVehicleLongitudinal(float Value);
     void ApplyVehicleSteering(float Value);

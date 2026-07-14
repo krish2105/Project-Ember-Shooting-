@@ -9,5 +9,6 @@ public class EmberGameplay : ModuleRules
             "Core", "CoreUObject", "Engine", "AudioExtensions", "InputCore", "EnhancedInput",
             "GameplayTags", "Niagara", "ChaosModularVehicleEngine", "EmberCore"
         });
+        PrivateDependencyModuleNames.AddRange(new[] { "Slate", "SlateCore" });
     }
 }

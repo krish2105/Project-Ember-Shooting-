@@ -247,6 +247,11 @@ void AEmberCharacter::MoveForward(float Value)
     if (FMath::IsNearlyZero(Value)) return;
     const FRotator YawRotation(0.0f, GetControlRotation().Yaw, 0.0f);
     AddMovementInput(FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X), Value);
+    if (!bMoveInputConfirmed)
+    {
+        bMoveInputConfirmed = true;
+        UE_LOG(LogEmberCombat, Log, TEXT("Player movement input confirmed: forward=%.2f"), Value);
+    }
 }
 
 void AEmberCharacter::MoveRight(float Value)
@@ -254,6 +259,11 @@ void AEmberCharacter::MoveRight(float Value)
     if (FMath::IsNearlyZero(Value)) return;
     const FRotator YawRotation(0.0f, GetControlRotation().Yaw, 0.0f);
     AddMovementInput(FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y), Value);
+    if (!bMoveInputConfirmed)
+    {
+        bMoveInputConfirmed = true;
+        UE_LOG(LogEmberCombat, Log, TEXT("Player movement input confirmed: right=%.2f"), Value);
+    }
 }
 
 void AEmberCharacter::Turn(float Value)

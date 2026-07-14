@@ -132,6 +132,7 @@ protected:
     FTimerHandle MeleeCooldownTimer;
     bool bFireInputHeld = false;
     bool bLookInputConfirmed = false;
+    bool bMoveInputConfirmed = false;
     bool bMeleeReady = true;
     bool bTacticalOverlayVisible = false;
     bool bControlsOverlayVisible = false;

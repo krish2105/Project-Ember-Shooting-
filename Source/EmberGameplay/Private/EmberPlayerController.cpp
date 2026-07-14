@@ -4,7 +4,9 @@
 #include "EmberLog.h"
 #include "EmberVehicleSeatComponent.h"
 #include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "EngineUtils.h"
+#include "Framework/Application/SlateApplication.h"
 #include "GameFramework/Pawn.h"
 #include "Misc/Paths.h"
 #include "TimerManager.h"
@@ -298,20 +300,22 @@ void AEmberPlayerController::ArmGameplayInput()
 {
     SetPause(false);
     bShowMouseCursor = false;
-    // Ignore-input APIs are stack based. BeginPlay and OnPossess can both run
-    // during packaged startup, so normalize before adding the short launch
-    // guard instead of leaving two locks for one delayed unlock.
+    // Ignore-input APIs are stack based. Never add a launch-time look lock:
+    // BeginPlay and possession can overlap, and a missed timer would leave the
+    // owner with a visible but completely static character. Normalizing the
+    // stacks is safe for both on-foot and vehicle possession.
     ResetIgnoreLookInput();
     ResetIgnoreMoveInput();
-    SetIgnoreLookInput(true);
-    SetIgnoreMoveInput(false);
-    SetInputMode(FInputModeGameOnly());
+    FInputModeGameOnly GameOnlyInput;
+    GameOnlyInput.SetConsumeCaptureMouseDown(false);
+    SetInputMode(GameOnlyInput);
+    FocusGameplayViewport();
     GetWorldTimerManager().ClearTimer(GameplayInputActivationTimer);
     GetWorldTimerManager().SetTimer(
         GameplayInputActivationTimer,
         this,
         &AEmberPlayerController::ActivateGameplayInput,
-        0.25f,
+        0.15f,
         false);
 }
 
@@ -325,7 +329,29 @@ void AEmberPlayerController::ActivateGameplayInput()
     bShowMouseCursor = false;
     ResetIgnoreLookInput();
     ResetIgnoreMoveInput();
-    SetInputMode(FInputModeGameOnly());
-    UE_LOG(LogEmberCombat, Log, TEXT("Gameplay mouse/look input activated; ignored=%s"),
-        IsLookInputIgnored() ? TEXT("true") : TEXT("false"));
+    FInputModeGameOnly GameOnlyInput;
+    GameOnlyInput.SetConsumeCaptureMouseDown(false);
+    SetInputMode(GameOnlyInput);
+    FocusGameplayViewport();
+    UE_LOG(LogEmberCombat, Log,
+        TEXT("Gameplay input activated; lookIgnored=%s moveIgnored=%s viewportFocused=%s"),
+        IsLookInputIgnored() ? TEXT("true") : TEXT("false"),
+        IsMoveInputIgnored() ? TEXT("true") : TEXT("false"),
+        FSlateApplication::IsInitialized() && FSlateApplication::Get().GetUserFocusedWidget(0).IsValid()
+            ? TEXT("true") : TEXT("false"));
+}
+
+void AEmberPlayerController::FocusGameplayViewport()
+{
+    if (!GEngine || !GEngine->GameViewport || !FSlateApplication::IsInitialized()) return;
+
+    UGameViewportClient* ViewportClient = GEngine->GameViewport;
+    ViewportClient->SetMouseCaptureMode(EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
+    ViewportClient->SetMouseLockMode(EMouseLockMode::LockOnCapture);
+    if (const TSharedPtr<SViewport> ViewportWidget = ViewportClient->GetGameViewportWidget();
+        ViewportWidget.IsValid())
+    {
+        FSlateApplication::Get().RegisterGameViewport(ViewportWidget.ToSharedRef());
+        FSlateApplication::Get().SetAllUserFocusToGameViewport(EFocusCause::SetDirectly);
+    }
 }
