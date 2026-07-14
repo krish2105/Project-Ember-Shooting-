@@ -534,9 +534,13 @@ void AEmberCharacter::UpdateWeaponPresentation(int32 Index)
     ActiveWeaponPresentationTransform = PresentationTransform;
     WeaponBodyVisual->SetRelativeTransform(ActiveWeaponPresentationTransform);
 
-    const TCHAR* AnimClassPath = Index == 5
-        ? TEXT("/Game/Variant_Shooter/Anims/ABP_TP_Pistol.ABP_TP_Pistol_C")
-        : TEXT("/Game/Variant_Shooter/Anims/ABP_TP_Rifle.ABP_TP_Rifle_C");
+    // The rifle graph is the shared locomotion/weapon-layer graph for every
+    // shipped slot.  Slot-specific fire and reload clips still come from each
+    // weapon definition, while retaining one cooked graph avoids a runtime
+    // dependency on the template pistol graph (which is not referenced by the
+    // generated map and can therefore be removed by the cooker).
+    const TCHAR* AnimClassPath =
+        TEXT("/Game/Variant_Shooter/Anims/ABP_TP_Rifle.ABP_TP_Rifle_C");
     if (UClass* AnimClass = LoadClass<UAnimInstance>(nullptr, AnimClassPath))
     {
         GetMesh()->SetAnimInstanceClass(AnimClass);
