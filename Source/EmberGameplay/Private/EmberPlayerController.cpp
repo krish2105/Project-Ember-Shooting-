@@ -92,6 +92,11 @@ bool AEmberPlayerController::EnterVehicle(APawn* VehiclePawn, AEmberCharacter* D
 
     LastVehicleEnterTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
     Possess(VehiclePawn);
+    // The example Blueprint's possession event may reactivate its authored
+    // overhead camera. Resolve camera ownership after possession so cooked and
+    // Editor builds deterministically select Ember's third-person chase view.
+    Seat->ActivateVehicleCamera();
+    SetViewTarget(VehiclePawn);
     bVehicleHandbrake = false;
     bVehicleDriveInputConfirmed = false;
     return GetPawn() == VehiclePawn;

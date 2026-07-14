@@ -154,6 +154,20 @@ void UEmberVehicleSeatComponent::AddCameraInput(const float YawDelta, const floa
     VehicleCameraBoom->SetRelativeRotation(FRotator(CameraPitch, CameraYawOffset, 0.0f));
 }
 
+void UEmberVehicleSeatComponent::ActivateVehicleCamera()
+{
+    APawn* VehiclePawn = Cast<APawn>(GetOwner());
+    if (!VehiclePawn || !VehicleCamera) return;
+    TArray<UCameraComponent*> ExistingCameras;
+    VehiclePawn->GetComponents<UCameraComponent>(ExistingCameras);
+    for (UCameraComponent* ExistingCamera : ExistingCameras)
+    {
+        if (!ExistingCamera) continue;
+        if (ExistingCamera == VehicleCamera) ExistingCamera->Activate(true);
+        else ExistingCamera->Deactivate();
+    }
+}
+
 void UEmberVehicleSeatComponent::DestroyVehicleCamera()
 {
     APawn* VehiclePawn = Cast<APawn>(GetOwner());

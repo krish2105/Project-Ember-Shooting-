@@ -42,6 +42,7 @@ public:
     AEmberCharacter* ReleaseDriver(FVector& OutExitLocation, FRotator& OutExitRotation);
     void SetControlState(float InThrottle, float InSteering, float InBrake, bool bInHandbrake);
     void AddCameraInput(float YawDelta, float PitchDelta);
+    void ActivateVehicleCamera();
 
     UFUNCTION(BlueprintPure, Category="Ember|Vehicle")
     AEmberCharacter* GetDriverCharacter() const { return DriverCharacter.Get(); }
