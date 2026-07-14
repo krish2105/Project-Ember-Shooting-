@@ -26,7 +26,10 @@ This build replaces the visibly empty prototype-grid release with a regenerated 
 - Content validation: 0 errors.
 - Automation: 8 passed, 0 failed, 0 warnings (`Saved/Automation/20260714T132502Z`).
 - Native Metal visual smoke: stable third-person horizon, rebuilt environment, tactical HUD/radar, patrol targets and gripped weapon visible.
-- The Development package, arm64/signature checks, fresh extraction and packaged input smoke are release gates and must be recorded after the archive is produced.
+- Development cook/package/archive: passed (`Releases/Development/20260714T133626Z`).
+- Fresh extraction: executable verified as thin arm64; deep/strict ad-hoc signature verification passed.
+- Packaged synthetic input: aim entered, full-magazine reload was correctly rejected, slot 2 equipped, firing reduced its magazine to 29, and reload then started. This is automated input evidence, not a human or physical-controller playtest.
+- ZIP SHA-256: `a0a9689d849ae5b747c14238dca40a81fd644f017957daa3b6994482bef29db1`.
 
 ## Controls
 
