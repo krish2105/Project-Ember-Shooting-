@@ -6,6 +6,8 @@ Required categories include player/enemy characters, locomotion and combat anima
 
 Engine/template content and original functional placeholders may establish gameplay. Every external candidate requires individual license review in `Licenses/THIRD_PARTY_ASSETS.csv`. No external character, weapon, harbor environment, animation, VFX, music or sound library is currently approved or represented as finished.
 
-The current build uses an original multi-part primitive weapon silhouette, transient tracer/impact lights and red hostile text as functional combat feedback. These are intentionally visible and testable, but remain placeholders for the licensed weapon rigs, materials, Niagara effects, animation sets and enemy art required by M6–M7.
+The current build uses Epic's UE 5.8 Shooter Variant third-person animation graph and UE-only rifle/pistol template meshes instead of the previous floating primitive silhouette. Transient tracer/impact lights and red hostile text remain functional placeholders. Original Project Ember weapon art for six distinct mission weapons, montage synchronization, Niagara effects and enemy art are still required by M6–M7.
+
+The requested supernatural-action tone is an art-direction reference only. No character, weapon, environment, name, story, audio or other proprietary asset from *Control* is included or planned for copying.
 
 The final-art gate blocks any claim of a Call-of-Duty-class or AAA presentation. Required owner decisions are an approved asset budget, original art direction, and per-item licensing/commission records.

@@ -55,13 +55,22 @@ bool FEmberPlayerWalkingFoundationTest::RunTest(const FString& Parameters)
     MutableCharacter->SetAiming(false);
     TestFalse(TEXT("Aim state can be exited"), MutableCharacter->IsAiming());
 
-    TestNotNull(TEXT("Weapon body visual exists"),
-        Cast<UStaticMeshComponent>(MutableCharacter->GetDefaultSubobjectByName(TEXT("WeaponBodyVisual"))));
-    TestNotNull(TEXT("Weapon barrel visual exists"),
-        Cast<UStaticMeshComponent>(MutableCharacter->GetDefaultSubobjectByName(TEXT("WeaponBarrelVisual"))));
-    TestNotNull(TEXT("Weapon stock visual exists"),
-        Cast<UStaticMeshComponent>(MutableCharacter->GetDefaultSubobjectByName(TEXT("WeaponStockVisual"))));
-    TestNotNull(TEXT("Weapon magazine visual exists"),
-        Cast<UStaticMeshComponent>(MutableCharacter->GetDefaultSubobjectByName(TEXT("WeaponMagazineVisual"))));
+    const UStaticMeshComponent* WeaponVisual = Cast<UStaticMeshComponent>(
+        MutableCharacter->GetDefaultSubobjectByName(TEXT("WeaponBodyVisual")));
+    TestNotNull(TEXT("Modeled weapon visual exists"), WeaponVisual);
+    if (WeaponVisual)
+    {
+        TestTrue(TEXT("Weapon follows the skeletal character mesh"),
+            WeaponVisual->GetAttachParent() == MutableCharacter->GetMesh());
+        TestEqual(TEXT("Weapon uses Manny's right-hand attachment"),
+            WeaponVisual->GetAttachSocketName(), FName(TEXT("hand_r")));
+    }
+    const UStaticMeshComponent* TracerVisual = Cast<UStaticMeshComponent>(
+        MutableCharacter->GetDefaultSubobjectByName(TEXT("WeaponBarrelVisual")));
+    TestNotNull(TEXT("Transient tracer helper exists"), TracerVisual);
+    if (TracerVisual)
+    {
+        TestFalse(TEXT("Tracer helper is not rendered as a fake gun"), TracerVisual->IsVisible());
+    }
     return true;
 }

@@ -16,14 +16,15 @@
 - Packaged keyboard/mouse evidence: a fresh extraction loaded the harbor, then synthetic macOS HID events produced runtime records `Player aim toggled: AIM`, `Player weapon fired; magazine=29 reserve=180`, and `Player reload requested: STARTED`. This proves the packaged bindings/state transitions without mislabeling it as a human playtest.
 - Packaged switching evidence: slot 1 fired to 29, slot 2 equipped/fired to 29, and slot 1 re-equipped at 29 before reload started. This proves that 1–6 selection does not refill a previously used slot.
 - Remaining M0 certification evidence: physical Xbox-layout and PlayStation-layout controller records.
+- Presentation correction (2026-07-14): the capsule-mounted primitive silhouette was removed. Epic's UE 5.8 Shooter Variant third-person rifle graph and modeled rifle/pistol resources are installed through an Editor script, the weapon follows Manny's `hand_r` bone, and a live Metal preview confirmed two-handed combat locomotion with a forward-oriented weapon. The camera now uses a tighter 310 cm exploration / 215 cm aim boom and 86/70 degree FOV pair.
 
 ## Remaining milestones
 
 ### M1–M2 — Player and Combat
 
 - In progress. Six selectable weapon slots now preserve independent magazine/reserve state, preventing switch-to-refill ammunition duplication.
-- Weapon definitions drive reload duration, recoil and aim/hip spread. Six functional silhouettes are visually differentiated and the packaged input path is proven.
-- Remaining: licensed final meshes/rigs, combat montages, chambering edge cases, full surface routing and physical controller certification.
+- Weapon definitions drive reload duration, recoil and aim/hip spread. Six functional slots use licensed UE-only template rifle/pistol presentation, and the packaged input path is proven in the prior build.
+- Remaining: original final weapon art for all six slots, fire/reload montage synchronization, chambering edge cases, full surface routing and physical controller certification.
 
 ### M3–M4 — AI and Harbor Mission
 

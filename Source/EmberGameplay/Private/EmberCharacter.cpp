@@ -68,45 +68,29 @@ AEmberCharacter::AEmberCharacter()
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(
         TEXT("/Engine/BasicShapes/Cube.Cube"));
-    // Functional weapon silhouette. It is anchored to the capsule so its
-    // forward axis is deterministic while the final rig/socket art is pending.
+    // The presentation mesh follows Manny's right hand. Its actual licensed
+    // mesh is assigned by the generated character Blueprint, keeping content
+    // references out of runtime gameplay code.
     WeaponBodyVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponBodyVisual"));
-    WeaponBodyVisual->SetupAttachment(RootComponent);
+    WeaponBodyVisual->SetupAttachment(GetMesh(), TEXT("hand_r"));
     WeaponBodyVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    WeaponBodyVisual->SetRelativeLocation(FVector(38.0f, 25.0f, 57.0f));
-    WeaponBodyVisual->SetRelativeScale3D(FVector(0.38f, 0.065f, 0.075f));
+    WeaponBodyVisual->SetRelativeLocation(FVector::ZeroVector);
+    WeaponBodyVisual->SetRelativeRotation(FRotator::ZeroRotator);
+    WeaponBodyVisual->SetRelativeScale3D(FVector::OneVector);
+
+    // A hidden cube is retained only as a lightweight transient tracer mesh.
     WeaponBarrelVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponBarrelVisual"));
     WeaponBarrelVisual->SetupAttachment(RootComponent);
     WeaponBarrelVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    WeaponBarrelVisual->SetRelativeLocation(FVector(73.0f, 25.0f, 59.0f));
-    WeaponBarrelVisual->SetRelativeScale3D(FVector(0.34f, 0.025f, 0.025f));
-    WeaponStockVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponStockVisual"));
-    WeaponStockVisual->SetupAttachment(RootComponent);
-    WeaponStockVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    WeaponStockVisual->SetRelativeLocation(FVector(10.0f, 25.0f, 56.0f));
-    WeaponStockVisual->SetRelativeScale3D(FVector(0.22f, 0.055f, 0.065f));
-    WeaponMagazineVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMagazineVisual"));
-    WeaponMagazineVisual->SetupAttachment(RootComponent);
-    WeaponMagazineVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    WeaponMagazineVisual->SetRelativeLocation(FVector(38.0f, 25.0f, 47.0f));
-    WeaponMagazineVisual->SetRelativeRotation(FRotator(0.0f, 12.0f, 0.0f));
-    WeaponMagazineVisual->SetRelativeScale3D(FVector(0.10f, 0.05f, 0.16f));
-    WeaponSightVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponSightVisual"));
-    WeaponSightVisual->SetupAttachment(RootComponent);
-    WeaponSightVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    WeaponSightVisual->SetRelativeLocation(FVector(44.0f, 25.0f, 67.0f));
-    WeaponSightVisual->SetRelativeScale3D(FVector(0.09f, 0.025f, 0.045f));
+    WeaponBarrelVisual->SetVisibility(false);
+    WeaponBarrelVisual->SetHiddenInGame(true);
     if (CubeMesh.Succeeded())
     {
-        WeaponBodyVisual->SetStaticMesh(CubeMesh.Object);
         WeaponBarrelVisual->SetStaticMesh(CubeMesh.Object);
-        WeaponStockVisual->SetStaticMesh(CubeMesh.Object);
-        WeaponMagazineVisual->SetStaticMesh(CubeMesh.Object);
-        WeaponSightVisual->SetStaticMesh(CubeMesh.Object);
     }
     MuzzleFlashLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("MuzzleFlashLight"));
-    MuzzleFlashLight->SetupAttachment(RootComponent);
-    MuzzleFlashLight->SetRelativeLocation(FVector(110.0f, 25.0f, 59.0f));
+    MuzzleFlashLight->SetupAttachment(WeaponBodyVisual);
+    MuzzleFlashLight->SetRelativeLocation(FVector(105.0f, 0.0f, 10.0f));
     MuzzleFlashLight->SetAttenuationRadius(450.0f);
     MuzzleFlashLight->SetLightColor(FLinearColor(1.0f, 0.35f, 0.04f));
     MuzzleFlashLight->SetIntensity(0.0f);
@@ -120,6 +104,10 @@ void AEmberCharacter::BeginPlay()
     Movement->GravityScale = 1.0f;
     Movement->SetPlaneConstraintEnabled(false);
     Movement->SetMovementMode(MOVE_Walking);
+    if (WeaponBodyVisual && PrimaryWeaponMesh)
+    {
+        WeaponBodyVisual->SetStaticMesh(PrimaryWeaponMesh);
+    }
     InitializeStarterWeapon();
     Weapon->OnShotResolved.AddDynamic(this, &AEmberCharacter::HandleShotResolved);
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
@@ -196,7 +184,7 @@ void AEmberCharacter::SetAiming(bool bNewAiming)
     bAiming = bNewAiming;
     CameraBoom->TargetArmLength = bAiming ? AimArmLength : ExplorationArmLength;
     CameraBoom->SocketOffset.Z = bAiming ? 58.0f : 70.0f;
-    FollowCamera->SetFieldOfView(bAiming ? 68.0f : 90.0f);
+    FollowCamera->SetFieldOfView(bAiming ? 70.0f : 86.0f);
     bUseControllerRotationYaw = bAiming;
     GetCharacterMovement()->bOrientRotationToMovement = !bAiming;
 }
@@ -455,23 +443,11 @@ void AEmberCharacter::EquipWeaponIndex(int32 Index)
 
 void AEmberCharacter::UpdateWeaponPresentation(int32 Index)
 {
-    static const FVector BodyScales[] = {
-        FVector(0.38f, 0.065f, 0.075f), FVector(0.28f, 0.075f, 0.08f),
-        FVector(0.42f, 0.09f, 0.10f), FVector(0.45f, 0.055f, 0.07f),
-        FVector(0.46f, 0.10f, 0.12f), FVector(0.52f, 0.06f, 0.075f)
-    };
-    static const FVector BarrelScales[] = {
-        FVector(0.34f, 0.025f, 0.025f), FVector(0.22f, 0.03f, 0.03f),
-        FVector(0.34f, 0.045f, 0.045f), FVector(0.50f, 0.02f, 0.02f),
-        FVector(0.30f, 0.04f, 0.04f), FVector(0.62f, 0.022f, 0.022f)
-    };
-    if (Index < 0 || Index >= UE_ARRAY_COUNT(BodyScales)) return;
-    WeaponBodyVisual->SetRelativeScale3D(BodyScales[Index]);
-    WeaponBarrelVisual->SetRelativeScale3D(BarrelScales[Index]);
-    WeaponMagazineVisual->SetRelativeScale3D(Index == 4
-        ? FVector(0.15f, 0.11f, 0.17f)
-        : (Index == 2 ? FVector(0.08f, 0.07f, 0.11f) : FVector(0.10f, 0.05f, 0.16f)));
-    WeaponSightVisual->SetVisibility(Index == 3 || Index == 5);
+    if (!WeaponBodyVisual || Index < 0 || Index >= 6) return;
+    UStaticMesh* DesiredMesh = Index == 5 && SidearmWeaponMesh
+        ? SidearmWeaponMesh.Get() : PrimaryWeaponMesh.Get();
+    WeaponBodyVisual->SetStaticMesh(DesiredMesh);
+    WeaponBodyVisual->SetRelativeScale3D(FVector::OneVector);
 }
 
 void AEmberCharacter::SwapShoulder()

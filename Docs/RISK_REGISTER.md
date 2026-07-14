@@ -11,6 +11,7 @@
 | Duplicate input routes obscured failures and could double-fire | High | Consolidated to one action-binding path; keep automated mapping checks and physical device test records |
 | First mouse click can be consumed by packaged-window capture | High | Aim now toggles on press and shows explicit FOV/HUD state; require fresh keyboard/mouse verification |
 | Combat actions lacked visible presentation feedback | High | Added deterministic weapon silhouette, muzzle/tracer/impact feedback, hostile labels and hit marker; final licensed presentation remains gated |
+| Weapon floated through torso with unarmed pose | High | Replaced capsule attachment with `hand_r`, imported UE 5.8 Shooter Variant rifle locomotion and modeled weapon resources through the Editor, and confirmed the corrected stance in a live Metal preview |
 | Weapon switching could refill ammunition | Critical | Each of six slots now stores/restores magazine and reserve state; automation covers restored state |
 | Checkpoint previously restored only position in memory | High | Versioned snapshot now persists transform, vitals, weapon ammunition and objectives to a SaveGame slot; packaged migration/corruption tests remain |
 | Imported Third Person Blueprint references missing template C++ module | Medium | Generator now assigns the mannequin and available Animation Blueprint directly |

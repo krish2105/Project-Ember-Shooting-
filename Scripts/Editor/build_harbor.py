@@ -42,7 +42,7 @@ def configure_character_blueprint():
         "/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple"
     )
     anim_class = unreal.load_class(
-        None, "/Game/Characters/Mannequins/Anims/Unarmed/ABP_Unarmed.ABP_Unarmed_C"
+        None, "/Game/Variant_Shooter/Anims/ABP_TP_Rifle.ABP_TP_Rifle_C"
     )
     if mannequin:
         mesh_component.set_skeletal_mesh_asset(mannequin)
@@ -60,6 +60,16 @@ def configure_character_blueprint():
     )
     mesh_component.set_collision_profile_name("CharacterMesh")
     mesh_component.set_simulate_physics(False)
+    weapon_component = cdo.get_editor_property("weapon_body_visual")
+    weapon_component.set_editor_property(
+        "relative_rotation", unreal.Rotator(pitch=0.0, yaw=90.0, roll=0.0)
+    )
+    primary_weapon = unreal.load_asset("/Game/Weapons/Rifle/Meshes/SM_Rifle")
+    sidearm_weapon = unreal.load_asset("/Game/Weapons/Pistol/Meshes/SM_Pistol")
+    if not primary_weapon or not sidearm_weapon:
+        raise RuntimeError("Shooter presentation meshes are unavailable")
+    cdo.set_editor_property("primary_weapon_mesh", primary_weapon)
+    cdo.set_editor_property("sidearm_weapon_mesh", sidearm_weapon)
     unreal.BlueprintEditorLibrary.compile_blueprint(blueprint)
     unreal.EditorAssetLibrary.save_loaded_asset(blueprint)
     return blueprint.generated_class()

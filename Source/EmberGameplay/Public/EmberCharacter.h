@@ -15,6 +15,7 @@ class UEmberInventoryComponent;
 class UEmberWeaponComponent;
 class USpringArmComponent;
 class UStaticMeshComponent;
+class UStaticMesh;
 class UPointLightComponent;
 
 UCLASS()
@@ -76,14 +77,13 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UEmberInteractionComponent> Interaction;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UStaticMeshComponent> WeaponBodyVisual;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UStaticMeshComponent> WeaponBarrelVisual;
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UStaticMeshComponent> WeaponStockVisual;
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UStaticMeshComponent> WeaponMagazineVisual;
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UStaticMeshComponent> WeaponSightVisual;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UPointLightComponent> MuzzleFlashLight;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon|Presentation") TObjectPtr<UStaticMesh> PrimaryWeaponMesh;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon|Presentation") TObjectPtr<UStaticMesh> SidearmWeaponMesh;
 
-    UPROPERTY(EditDefaultsOnly, Category="Camera") float ExplorationArmLength = 350.0f;
-    UPROPERTY(EditDefaultsOnly, Category="Camera") float AimArmLength = 260.0f;
-    UPROPERTY(EditDefaultsOnly, Category="Camera") float ShoulderOffset = 65.0f;
+    UPROPERTY(EditDefaultsOnly, Category="Camera") float ExplorationArmLength = 310.0f;
+    UPROPERTY(EditDefaultsOnly, Category="Camera") float AimArmLength = 215.0f;
+    UPROPERTY(EditDefaultsOnly, Category="Camera") float ShoulderOffset = 78.0f;
     UPROPERTY(VisibleInstanceOnly, Category="Camera") bool bAiming = false;
     UPROPERTY(VisibleInstanceOnly, Category="Camera") bool bRightShoulder = true;
     UPROPERTY(EditDefaultsOnly, Category="Movement") float JogSpeed = 500.0f;
