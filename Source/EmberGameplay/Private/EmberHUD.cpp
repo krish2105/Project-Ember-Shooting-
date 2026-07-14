@@ -27,7 +27,7 @@ void AEmberHUD::DrawHUD()
     using namespace EmberHUDStyle;
     const float Scale = FMath::Max(0.65f, FMath::Min(Canvas->ClipX / 1920.0f, Canvas->ClipY / 1080.0f));
     const FVector2D Center(Canvas->ClipX * 0.5f, Canvas->ClipY * 0.5f);
-    const APlayerController* PC = GetOwningPlayerController();
+    APlayerController* PC = GetOwningPlayerController();
     const AEmberCharacter* Character = PC ? Cast<AEmberCharacter>(PC->GetPawn()) : nullptr;
     if (!Character) return;
 
@@ -68,6 +68,30 @@ void AEmberHUD::DrawHUD()
         if (!Enemy) continue;
         const UEmberHealthComponent* EnemyHealth = Enemy->FindComponentByClass<UEmberHealthComponent>();
         if (!EnemyHealth || !EnemyHealth->IsDead()) ++LivingEnemies;
+    }
+
+    // Enemy health is only displayed when the enemy is in the player's view.
+    // This turns every hit into readable combat feedback without wall-hacking.
+    for (const TWeakObjectPtr<AActor>& Entry : CachedEnemies)
+    {
+        AActor* Enemy = Entry.Get();
+        if (!Enemy || !PC) continue;
+        const UEmberHealthComponent* EnemyHealth = Enemy->FindComponentByClass<UEmberHealthComponent>();
+        if (!EnemyHealth || EnemyHealth->IsDead()) continue;
+        FVector2D Screen;
+        const FVector Head = Enemy->GetActorLocation() + FVector(0.0f, 0.0f, 135.0f);
+        if (!PC->LineOfSightTo(Enemy) || !PC->ProjectWorldLocationToScreen(Head, Screen, true)) continue;
+        const FVector ToEnemy = Enemy->GetActorLocation() - Character->GetActorLocation();
+        if (FVector::DotProduct(Character->GetActorForwardVector(), ToEnemy.GetSafeNormal()) < -0.15f) continue;
+        const float Distance = ToEnemy.Size();
+        if (Distance > 5500.0f) continue;
+        const float W = FMath::Clamp(125.0f - Distance * 0.012f, 60.0f, 112.0f) * Scale;
+        const float Ratio = EnemyHealth->GetHealth() / FMath::Max(1.0f, EnemyHealth->GetMaxHealth());
+        DrawRect(FLinearColor(0.01f, 0.01f, 0.015f, 0.88f), Screen.X - W * 0.5f, Screen.Y, W, 9.0f * Scale);
+        DrawRect(Red, Screen.X - W * 0.5f + 2.0f * Scale, Screen.Y + 2.0f * Scale,
+            (W - 4.0f * Scale) * Ratio, 5.0f * Scale);
+        DrawText(TEXT("RIFLEMAN"), FLinearColor(1.0f, 0.55f, 0.35f, 1.0f),
+            Screen.X - W * 0.5f, Screen.Y - 16.0f * Scale, nullptr, 0.5f * Scale, false);
     }
 
     const FVector P = Character->GetActorLocation();
@@ -187,17 +211,68 @@ void AEmberHUD::DrawHUD()
         DrawLine(Center.X + H, Center.Y + H, Center.X + I, Center.Y + I, FLinearColor::White, 2.5f * Scale);
     }
 
-    DrawText(TEXT("WASD/STICKS MOVE  •  HOLD RMB/LT AIM  •  LMB/RT FIRE  •  R/X RELOAD  •  Q/DPAD-R SHOULDER  •  ESC/MENU PAUSE"),
+    DrawText(TEXT("WASD MOVE  •  RMB AIM  •  LMB FIRE  •  R RELOAD  •  Q SHOULDER  •  V MELEE  •  E/F USE  •  WHEEL WEAPON  •  TAB INTEL  •  H HELP"),
         Muted, 34.0f * Scale, Canvas->ClipY - 26.0f * Scale, nullptr, 0.53f * Scale, false);
+
+    const float DamageAlpha = Character->GetDamageFeedbackAlpha();
+    if (DamageAlpha > 0.01f)
+    {
+        const FLinearColor DamageRed(0.85f, 0.0f, 0.0f, 0.34f * DamageAlpha);
+        const float Edge = 86.0f * Scale;
+        DrawRect(DamageRed, 0, 0, Canvas->ClipX, Edge);
+        DrawRect(DamageRed, 0, Canvas->ClipY - Edge, Canvas->ClipX, Edge);
+        DrawRect(DamageRed, 0, Edge, Edge, Canvas->ClipY - Edge * 2.0f);
+        DrawRect(DamageRed, Canvas->ClipX - Edge, Edge, Edge, Canvas->ClipY - Edge * 2.0f);
+        DrawText(TEXT("INCOMING FIRE"), FLinearColor(1.0f, 0.25f, 0.18f, DamageAlpha),
+            Center.X - 68.0f * Scale, 92.0f * Scale, nullptr, 0.7f * Scale, false);
+    }
+
+    if (Character->IsControlsOverlayVisible())
+    {
+        const float W = 660.0f * Scale;
+        const float H = 430.0f * Scale;
+        const float X = Center.X - W * 0.5f;
+        const float Y = Center.Y - H * 0.5f;
+        PanelBox(X, Y, W, H);
+        DrawText(TEXT("KEYBOARD & MOUSE"), Cyan, X + 30.0f * Scale, Y + 24.0f * Scale, nullptr, 1.15f * Scale, false);
+        DrawText(TEXT("MOVEMENT"), Orange, X + 30.0f * Scale, Y + 82.0f * Scale, nullptr, 0.72f * Scale, false);
+        DrawText(TEXT("W A S D   Move        SHIFT   Sprint        SPACE   Jump\nC / CTRL  Crouch      Q       Swap shoulder"),
+            FLinearColor::White, X + 30.0f * Scale, Y + 112.0f * Scale, nullptr, 0.72f * Scale, false);
+        DrawText(TEXT("COMBAT"), Orange, X + 30.0f * Scale, Y + 202.0f * Scale, nullptr, 0.72f * Scale, false);
+        DrawText(TEXT("RMB   Aim       LMB   Fire/automatic       R   Reload\n1-6 / WHEEL   Select weapon       V   Melee       E / F   Interact"),
+            FLinearColor::White, X + 30.0f * Scale, Y + 232.0f * Scale, nullptr, 0.72f * Scale, false);
+        DrawText(TEXT("MENUS"), Orange, X + 30.0f * Scale, Y + 322.0f * Scale, nullptr, 0.72f * Scale, false);
+        DrawText(TEXT("TAB   Mission intel       H   Close help       ESC / P   Pause"),
+            FLinearColor::White, X + 30.0f * Scale, Y + 352.0f * Scale, nullptr, 0.72f * Scale, false);
+    }
+
+    if (Character->IsTacticalOverlayVisible())
+    {
+        const float W = 620.0f * Scale;
+        const float H = 310.0f * Scale;
+        const float X = Center.X - W * 0.5f;
+        const float Y = Center.Y - H * 0.5f;
+        PanelBox(X, Y, W, H);
+        DrawText(TEXT("MISSION INTEL // HARBOR-01"), Cyan, X + 28.0f * Scale, Y + 24.0f * Scale, nullptr, 1.05f * Scale, false);
+        DrawText(Phase, Orange, X + 28.0f * Scale, Y + 82.0f * Scale, nullptr, 0.75f * Scale, false);
+        DrawText(Objective, FLinearColor::White, X + 28.0f * Scale, Y + 118.0f * Scale, nullptr, 0.9f * Scale, false);
+        DrawText(FString::Printf(TEXT("ACTIVE HOSTILES: %02d\nCHECKPOINTS: AUTOMATIC\nOPTIONAL ROUTE: EASTERN MANIFEST OFFICE"), LivingEnemies),
+            Muted, X + 28.0f * Scale, Y + 168.0f * Scale, nullptr, 0.72f * Scale, false);
+        DrawText(TEXT("TAB   CLOSE INTEL"), Cyan, X + 28.0f * Scale, Y + 270.0f * Scale, nullptr, 0.65f * Scale, false);
+    }
 
     if (UGameplayStatics::IsGamePaused(this))
     {
         DrawRect(FLinearColor(0.005f, 0.015f, 0.025f, 0.9f), 0, 0, Canvas->ClipX, Canvas->ClipY);
-        const float PauseW = 520.0f * Scale;
-        PanelBox(Center.X - PauseW * 0.5f, Center.Y - 105.0f * Scale, PauseW, 210.0f * Scale);
+        const float PauseW = 620.0f * Scale;
+        PanelBox(Center.X - PauseW * 0.5f, Center.Y - 180.0f * Scale, PauseW, 360.0f * Scale);
         DrawText(TEXT("PROJECT EMBER"), Cyan, Center.X - 142.0f * Scale, Center.Y - 72.0f * Scale, nullptr, 1.45f * Scale, false);
         DrawText(TEXT("TACTICAL PAUSE"), Orange, Center.X - 104.0f * Scale, Center.Y - 25.0f * Scale, nullptr, 0.9f * Scale, false);
-        DrawText(TEXT("ESC / MENU   RESUME MISSION"), FLinearColor::White,
+        DrawText(TEXT("ESC / P / MENU"), FLinearColor::White,
             Center.X - 142.0f * Scale, Center.Y + 35.0f * Scale, nullptr, 0.78f * Scale, false);
+        DrawText(TEXT("RESUME MISSION"), Cyan,
+            Center.X + 35.0f * Scale, Center.Y + 35.0f * Scale, nullptr, 0.78f * Scale, false);
+        DrawText(TEXT("H   CONTROLS\nTAB   MISSION INTEL\nAutomatic checkpoint recovery enabled"), Muted,
+            Center.X - 142.0f * Scale, Center.Y + 82.0f * Scale, nullptr, 0.7f * Scale, false);
     }
 }

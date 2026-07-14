@@ -55,3 +55,12 @@ M5–M9 remain incomplete. Prototype systems or configuration may exist, but non
 - Verification for this increment: canonical Mac Editor build passed, Editor generation completed with 0 errors, content validation completed with 0 errors, and automation report `Saved/Automation/20260714T021955Z` contains 8 passed / 0 failed / 0 warnings. A live Metal teleport preview reached the interior, but the center position forced very tight camera collision; entrance-to-exit traversal, normal-route framing and AI navigation remain uncertified.
 - Combat-runtime pass (2026-07-14): stable shot/damage contracts now carry impact point, incoming direction, applied damage and kill state. Tactical enemies play a bounded directional flinch for damaging hits and retain ragdoll only for death. Mission/HUD encounter counts use living health state and cached actor sets so defeated enemies advance objectives immediately without per-frame world scans.
 - Verification for the combat-runtime pass: Mac Editor compiled, content validation completed with 0 errors, and `Saved/Automation/20260714T024604Z` contains 8 passed / 0 failed / 0 warnings. A fresh committed Development package and packaged interaction smoke test are required before publishing the next download.
+
+## Combat usability pass — 0.3.2-dev.1
+
+- Corrected player and enemy rifle alignment against Manny's `HandGrip_R` socket and switched both sides to the Shooter Variant rifle Animation Blueprint. The weapon now follows the authored two-handed shoulder pose instead of crossing the torso.
+- Added visible enemy rifles, pooled muzzle flashes/tracers, spatial procedural gunshots, tactical advance/flank/retreat/patrol behavior, a stuck-path fallback and an explicit controller guarantee for placed World Partition enemies.
+- Enemy fire uses a cover-respecting muzzle/shoulder trace with blocked shots, open misses and accuracy-based target hits. Live Metal evidence recorded the first target hit applying 8.4 armor and 5.6 health damage.
+- Added enemy health bars, player damage-edge feedback, stronger camera/weapon recoil, melee, interaction, mouse-wheel weapon switching, mission-intel and full-controls overlays.
+- Added keyboard bindings for `E`, `F`, `V`, mouse wheel, `Tab`, `H`, `Left Ctrl` and `P` while preserving movement, aim, automatic fire, reload, shoulder swap and slots 1–6.
+- Final source verification: Mac Editor/arm64 compile passed; `Saved/Automation/20260714T161653Z` contains 8 passed / 0 failed; content validation completed with 0 errors and one pre-existing device-profile priority warning.

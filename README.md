@@ -4,7 +4,7 @@ PROJECT EMBER is a native Apple Silicon, third-person tactical shooter vertical 
 
 The repository contains the buildable source, Editor-generated content and packaged-release workflow. UE 5.8, Xcode 26.6 and the Apple Metal Toolchain have been verified on the M4 Pro build host.
 
-The current rebuilt harbor combat preview and Gatekeeper instructions are documented in [Docs/RELEASE_NOTES_0.3.1-dev.1.md](Docs/RELEASE_NOTES_0.3.1-dev.1.md).
+The current rebuilt harbor combat preview and Gatekeeper instructions are documented in [Docs/RELEASE_NOTES_0.3.2-dev.1.md](Docs/RELEASE_NOTES_0.3.2-dev.1.md).
 
 ## Bootstrap
 

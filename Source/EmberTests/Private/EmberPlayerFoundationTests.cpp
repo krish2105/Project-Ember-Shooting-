@@ -43,6 +43,10 @@ bool FEmberPlayerWalkingFoundationTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("Mouse fire is mapped"), HasActionKey(TEXT("Fire"), EKeys::LeftMouseButton));
     TestTrue(TEXT("Mouse aim is mapped"), HasActionKey(TEXT("Aim"), EKeys::RightMouseButton));
     TestTrue(TEXT("Keyboard reload is mapped"), HasActionKey(TEXT("Reload"), EKeys::R));
+    TestTrue(TEXT("Keyboard interact is mapped"), HasActionKey(TEXT("Interact"), EKeys::E));
+    TestTrue(TEXT("Keyboard melee is mapped"), HasActionKey(TEXT("Melee"), EKeys::V));
+    TestTrue(TEXT("Tactical overlay is mapped"), HasActionKey(TEXT("TacticalOverlay"), EKeys::Tab));
+    TestTrue(TEXT("Controls overlay is mapped"), HasActionKey(TEXT("ControlsOverlay"), EKeys::H));
     TestTrue(TEXT("Controller fire is mapped"), HasActionKey(TEXT("Fire"), EKeys::Gamepad_RightTrigger));
     TestTrue(TEXT("Controller aim is mapped"), HasActionKey(TEXT("Aim"), EKeys::Gamepad_LeftTrigger));
 
@@ -68,6 +72,8 @@ bool FEmberPlayerWalkingFoundationTest::RunTest(const FString& Parameters)
             WeaponVisual->GetAttachParent() == MutableCharacter->GetMesh());
         TestEqual(TEXT("Weapon uses the Shooter Variant grip socket"),
             WeaponVisual->GetAttachSocketName(), FName(TEXT("HandGrip_R")));
+        TestTrue(TEXT("Rifle local Y axis is reversed into character-forward"),
+            FMath::IsNearlyEqual(FMath::Abs(WeaponVisual->GetRelativeRotation().Yaw), 180.0f, 0.1f));
     }
     const UStaticMeshComponent* TracerVisual = Cast<UStaticMeshComponent>(
         MutableCharacter->GetDefaultSubobjectByName(TEXT("WeaponBarrelVisual")));

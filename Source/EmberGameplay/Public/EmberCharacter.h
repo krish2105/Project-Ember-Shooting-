@@ -36,6 +36,10 @@ public:
     UFUNCTION(BlueprintPure) bool IsFiringInputHeld() const { return bFireInputHeld; }
     UFUNCTION(BlueprintPure) bool HasHostileUnderCrosshair() const;
     UFUNCTION(BlueprintPure) bool ShouldShowHitMarker() const;
+    UFUNCTION(BlueprintPure) float GetDamageFeedbackAlpha() const;
+    UFUNCTION(BlueprintPure) bool IsTacticalOverlayVisible() const { return bTacticalOverlayVisible; }
+    UFUNCTION(BlueprintPure) bool IsControlsOverlayVisible() const { return bControlsOverlayVisible; }
+    UFUNCTION(BlueprintPure) float GetRecoilFeedback() const { return WeaponVisualRecoil; }
     UFUNCTION(BlueprintPure) UEmberHealthComponent* GetHealthComponent() const { return Health; }
     UFUNCTION(BlueprintPure) UEmberArmorComponent* GetArmorComponent() const { return Armor; }
     UFUNCTION(BlueprintPure) UEmberWeaponComponent* GetWeaponComponent() const { return Weapon; }
@@ -50,7 +54,13 @@ protected:
     bool TryFire();
     UFUNCTION() void HandleShotResolved(const FEmberShotResult& Result);
     void Reload();
+    void Interact();
+    void MeleeAttack();
     void TogglePauseMenu();
+    void ToggleTacticalOverlay();
+    void ToggleControlsOverlay();
+    void CycleWeaponNext();
+    void CycleWeaponPrevious();
     void SelectWeapon1();
     void SelectWeapon2();
     void SelectWeapon3();
@@ -111,8 +121,13 @@ protected:
     FTimerHandle MuzzleFlashTimer;
     FTimerHandle ShotTracerTimer;
     FTimerHandle ImpactFeedbackTimer;
+    FTimerHandle MeleeCooldownTimer;
     bool bFireInputHeld = false;
+    bool bMeleeReady = true;
+    bool bTacticalOverlayVisible = false;
+    bool bControlsOverlayVisible = false;
     double LastHitTimeSeconds = -TNumericLimits<double>::Max();
+    double LastDamageTimeSeconds = -TNumericLimits<double>::Max();
     FEmberShotRequest LastShotRequest;
     TArray<uint8> GunshotPCM;
     TArray<int32> SlotMagazineAmmo;

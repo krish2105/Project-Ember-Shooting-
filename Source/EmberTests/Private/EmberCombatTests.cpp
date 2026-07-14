@@ -3,6 +3,7 @@
 #include "EmberTypes.h"
 #include "EmberWeaponComponent.h"
 #include "EmberWeaponDefinition.h"
+#include "EmberArmorComponent.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEmberDamageCalculationTest,
     "ProjectEmber.Combat.DamageCalculation",
@@ -22,6 +23,11 @@ bool FEmberDamageCalculationTest::RunTest(const FString& Parameters)
         FVector(Spec.ShotDirection).Equals(FVector::ForwardVector));
     TestTrue(TEXT("Damage contract carries the impact point"),
         FVector(Spec.ImpactPoint).Equals(FVector(100.0f, 20.0f, 50.0f)));
+    UEmberArmorComponent* Armor = NewObject<UEmberArmorComponent>();
+    float Absorbed = 0.0f;
+    const float Remaining = Armor->AbsorbDamage(20.0f, 1.0f, Absorbed);
+    TestEqual(TEXT("Armor visibly reduces but does not hide all health damage"), Absorbed, 12.0f);
+    TestEqual(TEXT("A protected rifle hit still reaches health"), Remaining, 8.0f);
     return true;
 }
 

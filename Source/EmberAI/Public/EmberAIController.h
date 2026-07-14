@@ -24,6 +24,8 @@ protected:
     UPROPERTY() TObjectPtr<UAISenseConfig_Sight> SightConfig;
     UPROPERTY() TObjectPtr<UAISenseConfig_Hearing> HearingConfig;
     UPROPERTY() TWeakObjectPtr<AActor> CombatTarget;
+    FVector PatrolAnchor = FVector::ZeroVector;
     float DecisionAccumulator = 0.0f;
     float FireCooldown = 0.0f;
+    float PatrolAngle = 0.0f;
 };

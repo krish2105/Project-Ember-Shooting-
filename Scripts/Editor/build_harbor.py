@@ -213,12 +213,12 @@ def configure_character_blueprint():
     cdo.set_editor_property(
         "weapon_presentation_transforms",
         [
-            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 0.0, 0.0), scale=unreal.Vector(1.18, 1.18, 1.18)),
-            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 0.0, 0.0), scale=unreal.Vector(1.08, 1.14, 1.14)),
-            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 0.0, 0.0), scale=unreal.Vector(1.14, 1.3, 1.22)),
-            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 0.0, 0.0), scale=unreal.Vector(1.22, 1.1, 1.1)),
-            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 0.0, 0.0), scale=unreal.Vector(1.2, 1.22, 1.18)),
-            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 0.0, 0.0), scale=unreal.Vector(1.08, 1.08, 1.08)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 180.0, 0.0), scale=unreal.Vector(1.18, 1.18, 1.18)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 180.0, 0.0), scale=unreal.Vector(1.08, 1.14, 1.14)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 180.0, 0.0), scale=unreal.Vector(1.14, 1.3, 1.22)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 180.0, 0.0), scale=unreal.Vector(1.22, 1.1, 1.1)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 180.0, 0.0), scale=unreal.Vector(1.2, 1.22, 1.18)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 180.0, 0.0), scale=unreal.Vector(1.08, 1.08, 1.08)),
         ],
     )
     unreal.BlueprintEditorLibrary.compile_blueprint(blueprint)

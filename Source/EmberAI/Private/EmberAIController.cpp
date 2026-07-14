@@ -1,4 +1,5 @@
 #include "EmberAIController.h"
+#include "EmberEnemyCharacter.h"
 #include "EmberTacticalStateComponent.h"
 #include "EmberInterfaces.h"
 #include "Engine/World.h"
@@ -8,6 +9,8 @@
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseConfig_Hearing.h"
 #include "Perception/AISenseConfig_Sight.h"
+#include "Navigation/PathFollowingComponent.h"
+#include "EmberLog.h"
 
 AEmberAIController::AEmberAIController()
 {
@@ -16,8 +19,8 @@ AEmberAIController::AEmberAIController()
     SetPerceptionComponent(*EmberPerception);
 
     SightConfig = CreateDefaultSubobject<UAISenseConfig_Sight>(TEXT("SightConfig"));
-    SightConfig->SightRadius = 3000.0f;
-    SightConfig->LoseSightRadius = 3600.0f;
+    SightConfig->SightRadius = 6500.0f;
+    SightConfig->LoseSightRadius = 7500.0f;
     SightConfig->PeripheralVisionAngleDegrees = 70.0f;
     SightConfig->DetectionByAffiliation.bDetectEnemies = true;
     SightConfig->DetectionByAffiliation.bDetectFriendlies = false;
@@ -37,6 +40,8 @@ AEmberAIController::AEmberAIController()
 void AEmberAIController::OnPossess(APawn* InPawn)
 {
     Super::OnPossess(InPawn);
+    PatrolAnchor = InPawn ? InPawn->GetActorLocation() : FVector::ZeroVector;
+    PatrolAngle = FMath::FRandRange(0.0f, TWO_PI);
     if (InPawn && !InPawn->FindComponentByClass<UEmberTacticalStateComponent>())
     {
         UE_LOG(LogTemp, Warning, TEXT("AI pawn %s has no Ember tactical state component."), *InPawn->GetName());
@@ -67,9 +72,19 @@ void AEmberAIController::Tick(float DeltaSeconds)
     APawn* ControlledPawn = GetPawn();
     APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
     if (!ControlledPawn || !PlayerPawn) return;
-    if (!CombatTarget.IsValid() && LineOfSightTo(PlayerPawn)) CombatTarget = PlayerPawn;
+    const float PlayerDistance = FVector::Dist2D(ControlledPawn->GetActorLocation(), PlayerPawn->GetActorLocation());
+    if (!CombatTarget.IsValid() && (PlayerDistance < 7000.0f || LineOfSightTo(PlayerPawn))) CombatTarget = PlayerPawn;
     AActor* Target = CombatTarget.Get();
-    if (!Target) return;
+    if (!Target)
+    {
+        PatrolAngle += 0.12f;
+        const FVector PatrolGoal = PatrolAnchor + FVector(FMath::Cos(PatrolAngle), FMath::Sin(PatrolAngle), 0.0f) * 420.0f;
+        const EPathFollowingRequestResult::Type Result = MoveToLocation(PatrolGoal, 90.0f, true, true, false, true);
+        if (Result == EPathFollowingRequestResult::Failed)
+            ControlledPawn->AddMovementInput((PatrolGoal - ControlledPawn->GetActorLocation()).GetSafeNormal2D(), 0.65f);
+        return;
+    }
+    SetFocus(Target);
 
     UEmberTacticalStateComponent* Tactical = ControlledPawn->FindComponentByClass<UEmberTacticalStateComponent>();
     const FVector ToTarget = Target->GetActorLocation() - ControlledPawn->GetActorLocation();
@@ -89,22 +104,19 @@ void AEmberAIController::Tick(float DeltaSeconds)
     {
         if (Tactical) Tactical->SetState(EEmberAIState::Advancing);
     }
-    MoveToLocation(Destination, 250.0f, true, true, false, true);
+    const EPathFollowingRequestResult::Type MoveResult = MoveToLocation(Destination, 250.0f, true, true, false, true);
+    if (MoveResult == EPathFollowingRequestResult::Failed || ControlledPawn->GetVelocity().SizeSquared2D() < 25.0f)
+        ControlledPawn->AddMovementInput((Destination - ControlledPawn->GetActorLocation()).GetSafeNormal2D(), 1.0f);
 
-    if (Distance > 3600.0f || FireCooldown > 0.0f || !LineOfSightTo(Target)) return;
-    const FVector Start = ControlledPawn->GetActorLocation() + FVector(0.0f, 0.0f, 65.0f);
-    const FVector End = Target->GetActorLocation() + FVector(0.0f, 0.0f, 55.0f);
-    FHitResult Hit;
-    FCollisionQueryParams Params(SCENE_QUERY_STAT(EmberAIFire), false, ControlledPawn);
-    if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params) && Hit.GetActor() == Target &&
-        Target->GetClass()->ImplementsInterface(UEmberDamageable::StaticClass()))
+    // FireAt performs the authoritative muzzle visibility trace. Using
+    // AAIController::LineOfSightTo here as a second gate prevented suppression
+    // fire in the generated World Partition map when the target was visible
+    // from the muzzle but not from the controller's abstract eye point.
+    if (Distance > 4500.0f || FireCooldown > 0.0f) return;
+    if (AEmberEnemyCharacter* Enemy = Cast<AEmberEnemyCharacter>(ControlledPawn))
     {
-        FEmberDamageSpec Damage;
-        Damage.BaseDamage = 8.0f;
-        Damage.ShotDirection = (End - Start).GetSafeNormal();
-        Damage.ImpactPoint = Hit.ImpactPoint;
-        IEmberDamageable::Execute_ReceiveEmberDamage(Target, Damage);
+        Enemy->FireAt(Target);
         if (Tactical) Tactical->SetState(EEmberAIState::Engaging);
-        FireCooldown = 0.55f + FMath::FRandRange(0.0f, 0.35f);
+        FireCooldown = 0.65f + FMath::FRandRange(0.0f, 0.45f);
     }
 }

@@ -80,7 +80,7 @@ AEmberCharacter::AEmberCharacter()
     WeaponBodyVisual->SetupAttachment(GetMesh(), TEXT("HandGrip_R"));
     WeaponBodyVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     WeaponBodyVisual->SetRelativeLocation(FVector::ZeroVector);
-    WeaponBodyVisual->SetRelativeRotation(FRotator::ZeroRotator);
+    WeaponBodyVisual->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
     WeaponBodyVisual->SetRelativeScale3D(FVector::OneVector);
 
     // A hidden cube is retained only as a lightweight transient tracer mesh.
@@ -105,7 +105,10 @@ AEmberCharacter::AEmberCharacter()
     }
     MuzzleFlashLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("MuzzleFlashLight"));
     MuzzleFlashLight->SetupAttachment(WeaponBodyVisual);
-    MuzzleFlashLight->SetRelativeLocation(FVector(105.0f, 0.0f, 10.0f));
+    // The template rifle is authored lengthwise on local +Y. The grip socket
+    // rotates that axis into character-forward, so the muzzle belongs at the
+    // positive-Y end of the mesh rather than on the old primitive's X axis.
+    MuzzleFlashLight->SetRelativeLocation(FVector(0.0f, 58.0f, 7.0f));
     MuzzleFlashLight->SetAttenuationRadius(450.0f);
     MuzzleFlashLight->SetLightColor(FLinearColor(1.0f, 0.35f, 0.04f));
     MuzzleFlashLight->SetIntensity(0.0f);
@@ -168,7 +171,8 @@ void AEmberCharacter::Tick(float DeltaSeconds)
         const float ReloadPose = FMath::Sin(ReloadProgress * PI);
         FVector Location = ActiveWeaponPresentationTransform.GetLocation();
         FRotator Rotation = ActiveWeaponPresentationTransform.Rotator();
-        Location.X -= WeaponVisualRecoil * 7.0f;
+        Location.X -= WeaponVisualRecoil * 4.0f;
+        Rotation.Pitch += WeaponVisualRecoil * 2.5f;
         Location.Z -= ReloadPose * 13.0f;
         Rotation.Pitch -= ReloadPose * 12.0f;
         Rotation.Roll += ReloadPose * 32.0f;
@@ -190,6 +194,8 @@ void AEmberCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
     PlayerInputComponent->BindAction(TEXT("Fire"), IE_Pressed, this, &AEmberCharacter::FireStarted);
     PlayerInputComponent->BindAction(TEXT("Fire"), IE_Released, this, &AEmberCharacter::FireCompleted);
     PlayerInputComponent->BindAction(TEXT("Reload"), IE_Pressed, this, &AEmberCharacter::Reload);
+    PlayerInputComponent->BindAction(TEXT("Interact"), IE_Pressed, this, &AEmberCharacter::Interact);
+    PlayerInputComponent->BindAction(TEXT("Melee"), IE_Pressed, this, &AEmberCharacter::MeleeAttack);
     PlayerInputComponent->BindAction(TEXT("ShoulderSwap"), IE_Pressed, this, &AEmberCharacter::SwapShoulder);
     PlayerInputComponent->BindAction(TEXT("Sprint"), IE_Pressed, this, &AEmberCharacter::StartSprint);
     PlayerInputComponent->BindAction(TEXT("Sprint"), IE_Released, this, &AEmberCharacter::StopSprint);
@@ -201,6 +207,10 @@ void AEmberCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
     PlayerInputComponent->BindAction(TEXT("Weapon4"), IE_Pressed, this, &AEmberCharacter::SelectWeapon4);
     PlayerInputComponent->BindAction(TEXT("Weapon5"), IE_Pressed, this, &AEmberCharacter::SelectWeapon5);
     PlayerInputComponent->BindAction(TEXT("Weapon6"), IE_Pressed, this, &AEmberCharacter::SelectWeapon6);
+    PlayerInputComponent->BindAction(TEXT("WeaponNext"), IE_Pressed, this, &AEmberCharacter::CycleWeaponNext);
+    PlayerInputComponent->BindAction(TEXT("WeaponPrevious"), IE_Pressed, this, &AEmberCharacter::CycleWeaponPrevious);
+    PlayerInputComponent->BindAction(TEXT("TacticalOverlay"), IE_Pressed, this, &AEmberCharacter::ToggleTacticalOverlay).bExecuteWhenPaused = true;
+    PlayerInputComponent->BindAction(TEXT("ControlsOverlay"), IE_Pressed, this, &AEmberCharacter::ToggleControlsOverlay).bExecuteWhenPaused = true;
 }
 
 void AEmberCharacter::MoveForward(float Value)
@@ -276,6 +286,42 @@ void AEmberCharacter::Reload()
     UE_LOG(LogEmberCombat, Log, TEXT("Player reload requested: %s"), bStarted ? TEXT("STARTED") : TEXT("REJECTED"));
 }
 
+void AEmberCharacter::Interact()
+{
+    if (Interaction && FollowCamera)
+    {
+        Interaction->TryInteract(FollowCamera->GetComponentLocation(), FollowCamera->GetForwardVector());
+    }
+}
+
+void AEmberCharacter::MeleeAttack()
+{
+    if (!bMeleeReady || !GetWorld() || !FollowCamera) return;
+    bMeleeReady = false;
+    const FVector Start = FollowCamera->GetComponentLocation();
+    const FVector End = Start + FollowCamera->GetForwardVector() * 190.0f;
+    FHitResult Hit;
+    FCollisionQueryParams Params(SCENE_QUERY_STAT(EmberMelee), true, this);
+    if (GetWorld()->SweepSingleByChannel(Hit, Start, End, FQuat::Identity, ECC_Visibility,
+        FCollisionShape::MakeSphere(55.0f), Params))
+    {
+        AActor* Target = Hit.GetActor();
+        if (Target && Target->GetClass()->ImplementsInterface(UEmberDamageable::StaticClass()))
+        {
+            FEmberDamageSpec Damage;
+            Damage.BaseDamage = 45.0f;
+            Damage.ArmorModifier = 1.1f;
+            Damage.Stagger = 45.0f;
+            Damage.ShotDirection = FollowCamera->GetForwardVector();
+            Damage.ImpactPoint = Hit.ImpactPoint;
+            const FEmberDamageResult Result = IEmberDamageable::Execute_ReceiveEmberDamage(Target, Damage);
+            if (Result.AppliedToHealth + Result.AppliedToArmor > 0.0f)
+                LastHitTimeSeconds = GetWorld()->GetTimeSeconds();
+        }
+    }
+    GetWorldTimerManager().SetTimer(MeleeCooldownTimer, [this]() { bMeleeReady = true; }, 0.65f, false);
+}
+
 bool AEmberCharacter::TryFire()
 {
     if (!Weapon) return false;
@@ -283,7 +329,7 @@ bool AEmberCharacter::TryFire()
     if (!Weapon->RequestFire(LastShotRequest)) return false;
     UE_LOG(LogEmberCombat, Log, TEXT("Player weapon fired; magazine=%d reserve=%d"),
         Weapon->GetMagazineAmmo(), Weapon->GetReserveAmmo());
-    WeaponVisualRecoil = 1.0f;
+    WeaponVisualRecoil = FMath::Min(2.25f, WeaponVisualRecoil + 1.15f);
     PlayCurrentWeaponMontage(false);
     PlayGunshotFeedback();
     return true;
@@ -340,6 +386,12 @@ bool AEmberCharacter::ShouldShowHitMarker() const
     return GetWorld() && GetWorld()->GetTimeSeconds() - LastHitTimeSeconds < 0.18;
 }
 
+float AEmberCharacter::GetDamageFeedbackAlpha() const
+{
+    if (!GetWorld()) return 0.0f;
+    return 1.0f - FMath::Clamp(static_cast<float>((GetWorld()->GetTimeSeconds() - LastDamageTimeSeconds) / 0.7), 0.0f, 1.0f);
+}
+
 void AEmberCharacter::WriteWeaponCheckpoint(FEmberCheckpointSnapshot& Snapshot) const
 {
     for (int32 Index = 0; Index < 6; ++Index)
@@ -389,9 +441,10 @@ void AEmberCharacter::PlayGunshotFeedback()
 {
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
-        PC->AddPitchInput(-(Weapon ? Weapon->GetVerticalRecoil() : 0.65f));
+        const float AimMultiplier = bAiming ? 0.78f : 1.0f;
+        PC->AddPitchInput(-(Weapon ? Weapon->GetVerticalRecoil() : 0.65f) * 1.35f * AimMultiplier);
         const float Horizontal = Weapon ? Weapon->GetHorizontalRecoil() : 0.18f;
-        PC->AddYawInput(FMath::FRandRange(-Horizontal, Horizontal));
+        PC->AddYawInput(FMath::FRandRange(-Horizontal, Horizontal) * 1.2f * AimMultiplier);
     }
     if (MuzzleFlashLight)
     {
@@ -466,6 +519,28 @@ void AEmberCharacter::TogglePauseMenu()
         PC->bShowMouseCursor = bPause;
         bPause ? PC->SetInputMode(FInputModeGameAndUI()) : PC->SetInputMode(FInputModeGameOnly());
     }
+}
+
+void AEmberCharacter::ToggleTacticalOverlay()
+{
+    bTacticalOverlayVisible = !bTacticalOverlayVisible;
+    if (bTacticalOverlayVisible) bControlsOverlayVisible = false;
+}
+
+void AEmberCharacter::ToggleControlsOverlay()
+{
+    bControlsOverlayVisible = !bControlsOverlayVisible;
+    if (bControlsOverlayVisible) bTacticalOverlayVisible = false;
+}
+
+void AEmberCharacter::CycleWeaponNext()
+{
+    EquipWeaponIndex(CurrentWeaponIndex == INDEX_NONE ? 0 : (CurrentWeaponIndex + 1) % 6);
+}
+
+void AEmberCharacter::CycleWeaponPrevious()
+{
+    EquipWeaponIndex(CurrentWeaponIndex == INDEX_NONE ? 0 : (CurrentWeaponIndex + 5) % 6);
 }
 
 void AEmberCharacter::SelectWeapon1() { EquipWeaponIndex(0); }
@@ -599,5 +674,10 @@ FEmberShotRequest AEmberCharacter::BuildShotRequest() const
 
 FEmberDamageResult AEmberCharacter::ReceiveEmberDamage_Implementation(const FEmberDamageSpec& DamageSpec)
 {
-    return DamageReceiver ? DamageReceiver->ApplyDamageSpec(DamageSpec) : FEmberDamageResult();
+    const FEmberDamageResult Result = DamageReceiver ? DamageReceiver->ApplyDamageSpec(DamageSpec) : FEmberDamageResult();
+    if (Result.AppliedToHealth + Result.AppliedToArmor > 0.0f && GetWorld())
+    {
+        LastDamageTimeSeconds = GetWorld()->GetTimeSeconds();
+    }
+    return Result;
 }
