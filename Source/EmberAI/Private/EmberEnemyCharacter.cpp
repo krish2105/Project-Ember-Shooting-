@@ -25,6 +25,14 @@ AEmberEnemyCharacter::AEmberEnemyCharacter()
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
     Tags.Add(TEXT("EmberEnemy"));
 
+    // Explicit pawn blocking is essential for readable over-the-shoulder
+    // combat. Generated/template collision presets can otherwise allow the
+    // enemy capsule to occupy the player's shoulder and weapon space.
+    GetCapsuleComponent()->SetCollisionProfileName(TEXT("Pawn"));
+    GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
+    GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+
     Health = CreateDefaultSubobject<UEmberHealthComponent>(TEXT("Health"));
     Armor = CreateDefaultSubobject<UEmberArmorComponent>(TEXT("Armor"));
     DamageReceiver = CreateDefaultSubobject<UEmberDamageReceiverComponent>(TEXT("DamageReceiver"));
@@ -43,6 +51,9 @@ AEmberEnemyCharacter::AEmberEnemyCharacter()
 
     GetCharacterMovement()->MaxWalkSpeed = 360.0f;
     GetCharacterMovement()->bOrientRotationToMovement = false;
+    GetCharacterMovement()->bUseRVOAvoidance = true;
+    GetCharacterMovement()->AvoidanceConsiderationRadius = 650.0f;
+    GetCharacterMovement()->AvoidanceWeight = 0.72f;
     bUseControllerRotationYaw = true;
 
     static ConstructorHelpers::FObjectFinder<USkeletalMesh> MeshAsset(
@@ -92,6 +103,9 @@ AEmberEnemyCharacter::AEmberEnemyCharacter()
 void AEmberEnemyCharacter::BeginPlay()
 {
     Super::BeginPlay();
+    GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
+    GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
     // Placed World Partition actors can retain an older serialized possession
     // setting after the native class changes. Guarantee that every live hostile
     // receives its tactical controller in both Editor and packaged builds.
@@ -263,6 +277,7 @@ void AEmberEnemyCharacter::HandleDeath()
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     GetCharacterMovement()->DisableMovement();
     GetMesh()->SetCollisionProfileName(TEXT("Ragdoll"));
+    GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
     GetMesh()->SetSimulatePhysics(true);
     SetLifeSpan(12.0f);
 }

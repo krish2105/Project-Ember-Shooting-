@@ -17,6 +17,11 @@ class EMBERAI_API AEmberAIController : public AAIController
 public:
     AEmberAIController();
     virtual void Tick(float DeltaSeconds) override;
+    /** Tactical ring used to keep combatants readable in the third-person camera. */
+    static constexpr float MinimumCombatRange = 1150.0f;
+    static constexpr float DesiredCombatRange = 1850.0f;
+    static constexpr float MaximumCombatRange = 2850.0f;
+    static constexpr float MinimumFireRange = 900.0f;
 protected:
     virtual void OnPossess(APawn* InPawn) override;
     UFUNCTION() void HandleTargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus);
@@ -28,4 +33,5 @@ protected:
     float DecisionAccumulator = 0.0f;
     float FireCooldown = 0.0f;
     float PatrolAngle = 0.0f;
+    float FlankDirection = 1.0f;
 };

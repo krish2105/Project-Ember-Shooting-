@@ -1,11 +1,13 @@
 #include "EmberMissionDirector.h"
 #include "EmberHealthComponent.h"
+#include "EmberArmorComponent.h"
 #include "EmberMissionDefinition.h"
 #include "EmberMissionSubsystem.h"
 #include "EmberMissionSaveGame.h"
 #include "EmberLog.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/PawnMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -116,8 +118,12 @@ void AEmberMissionDirector::UpdateMission()
 
     if (UEmberHealthComponent* Health = Player->FindComponentByClass<UEmberHealthComponent>(); Health && Health->IsDead())
     {
+        if (UPawnMovementComponent* Movement = Player->GetMovementComponent()) Movement->StopMovementImmediately();
         Health->RestoreToFull();
+        if (UEmberArmorComponent* Armor = Player->FindComponentByClass<UEmberArmorComponent>())
+            Armor->RestoreArmor(100.0f);
         Player->SetActorLocation(LastCheckpointLocation, false, nullptr, ETeleportType::TeleportPhysics);
+        UE_LOG(LogEmberMission, Log, TEXT("Player recovered at checkpoint with restored health and armor"));
     }
 }
 

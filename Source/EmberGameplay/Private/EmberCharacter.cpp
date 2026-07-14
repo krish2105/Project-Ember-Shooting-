@@ -7,6 +7,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/AudioComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "EmberArmorComponent.h"
 #include "EmberDamageReceiverComponent.h"
 #include "EmberHealthComponent.h"
@@ -45,6 +46,10 @@ namespace
 AEmberCharacter::AEmberCharacter()
 {
     PrimaryActorTick.bCanEverTick = true;
+    GetCapsuleComponent()->SetCollisionProfileName(TEXT("Pawn"));
+    GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
+    GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
     bUseControllerRotationYaw = false;
     GetCharacterMovement()->bOrientRotationToMovement = true;
     GetCharacterMovement()->GravityScale = 1.0f;
@@ -127,6 +132,9 @@ AEmberCharacter::AEmberCharacter()
 void AEmberCharacter::BeginPlay()
 {
     Super::BeginPlay();
+    GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
+    GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
     UCharacterMovementComponent* Movement = GetCharacterMovement();
     Movement->MaxWalkSpeed = JogSpeed;
     Movement->GravityScale = 1.0f;

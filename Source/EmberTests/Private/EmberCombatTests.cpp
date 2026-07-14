@@ -4,6 +4,10 @@
 #include "EmberWeaponComponent.h"
 #include "EmberWeaponDefinition.h"
 #include "EmberArmorComponent.h"
+#include "EmberAIController.h"
+#include "EmberEnemyCharacter.h"
+#include "Components/CapsuleComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEmberDamageCalculationTest,
     "ProjectEmber.Combat.DamageCalculation",
@@ -66,5 +70,28 @@ bool FEmberWeaponStateRestoreTest::RunTest(const FString& Parameters)
         Weapon->GetReloadStage(), EEmberReloadStage::Started);
     TestTrue(TEXT("A tactical reload can be interrupted before insertion"), Weapon->CancelReload());
     TestFalse(TEXT("Interrupted reload clears the visible state"), Weapon->IsReloading());
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEmberCombatSpacingTest,
+    "ProjectEmber.Combat.CombatSpacing",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FEmberCombatSpacingTest::RunTest(const FString& Parameters)
+{
+    TestTrue(TEXT("Enemy minimum fire range remains outside capsule overlap space"),
+        AEmberAIController::MinimumFireRange > 500.0f);
+    TestTrue(TEXT("Desired tactical range is greater than emergency separation range"),
+        AEmberAIController::DesiredCombatRange > AEmberAIController::MinimumCombatRange);
+    TestTrue(TEXT("Maximum tactical range contains the desired combat ring"),
+        AEmberAIController::MaximumCombatRange > AEmberAIController::DesiredCombatRange);
+
+    const AEmberEnemyCharacter* Enemy = GetDefault<AEmberEnemyCharacter>();
+    TestEqual(TEXT("Enemy capsule blocks other pawns"),
+        Enemy->GetCapsuleComponent()->GetCollisionResponseToChannel(ECC_Pawn), ECR_Block);
+    TestEqual(TEXT("Enemy capsule is a valid rifle visibility target"),
+        Enemy->GetCapsuleComponent()->GetCollisionResponseToChannel(ECC_Visibility), ECR_Block);
+    TestTrue(TEXT("Enemy movement uses local crowd avoidance"),
+        Enemy->GetCharacterMovement()->bUseRVOAvoidance);
     return true;
 }

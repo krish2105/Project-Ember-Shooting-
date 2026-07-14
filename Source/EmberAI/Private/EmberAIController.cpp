@@ -42,6 +42,7 @@ void AEmberAIController::OnPossess(APawn* InPawn)
     Super::OnPossess(InPawn);
     PatrolAnchor = InPawn ? InPawn->GetActorLocation() : FVector::ZeroVector;
     PatrolAngle = FMath::FRandRange(0.0f, TWO_PI);
+    FlankDirection = FMath::RandBool() ? 1.0f : -1.0f;
     if (InPawn && !InPawn->FindComponentByClass<UEmberTacticalStateComponent>())
     {
         UE_LOG(LogTemp, Warning, TEXT("AI pawn %s has no Ember tactical state component."), *InPawn->GetName());
@@ -89,30 +90,45 @@ void AEmberAIController::Tick(float DeltaSeconds)
     UEmberTacticalStateComponent* Tactical = ControlledPawn->FindComponentByClass<UEmberTacticalStateComponent>();
     const FVector ToTarget = Target->GetActorLocation() - ControlledPawn->GetActorLocation();
     const float Distance = ToTarget.Size2D();
-    FVector Destination = Target->GetActorLocation();
-    if (Distance < 850.0f)
+    const FVector TowardTarget = ToTarget.GetSafeNormal2D();
+    const FVector Lateral = FVector::CrossProduct(TowardTarget, FVector::UpVector).GetSafeNormal2D();
+    FVector Destination = Target->GetActorLocation() - TowardTarget * DesiredCombatRange;
+    bool bEmergencySeparation = false;
+    if (Distance < MinimumCombatRange)
     {
         if (Tactical) Tactical->SetState(EEmberAIState::Retreating);
-        Destination = ControlledPawn->GetActorLocation() - ToTarget.GetSafeNormal2D() * 600.0f;
+        bEmergencySeparation = true;
+        // Move decisively away instead of choosing a point that can still lie
+        // inside the player's third-person camera/capsule space.
+        Destination = ControlledPawn->GetActorLocation() - TowardTarget *
+            FMath::Max(650.0f, DesiredCombatRange - Distance);
     }
-    else if (Distance < 2200.0f)
+    else if (Distance < MaximumCombatRange)
     {
         if (Tactical) Tactical->SetState(EEmberAIState::Flanking);
-        Destination += FVector::CrossProduct(ToTarget.GetSafeNormal2D(), FVector::UpVector) * 650.0f;
+        // Strafe around a stable combat ring. The previous target-relative
+        // offset pulled enemies to within 6.5 m and caused rig interpenetration.
+        Destination += Lateral * FlankDirection * 620.0f;
     }
     else
     {
         if (Tactical) Tactical->SetState(EEmberAIState::Advancing);
     }
-    const EPathFollowingRequestResult::Type MoveResult = MoveToLocation(Destination, 250.0f, true, true, false, true);
+    const EPathFollowingRequestResult::Type MoveResult = MoveToLocation(
+        Destination, bEmergencySeparation ? 80.0f : 220.0f, true, true, false, true);
     if (MoveResult == EPathFollowingRequestResult::Failed || ControlledPawn->GetVelocity().SizeSquared2D() < 25.0f)
-        ControlledPawn->AddMovementInput((Destination - ControlledPawn->GetActorLocation()).GetSafeNormal2D(), 1.0f);
+    {
+        const FVector FallbackDirection = bEmergencySeparation
+            ? -TowardTarget
+            : (Destination - ControlledPawn->GetActorLocation()).GetSafeNormal2D();
+        ControlledPawn->AddMovementInput(FallbackDirection, bEmergencySeparation ? 1.0f : 0.7f);
+    }
 
     // FireAt performs the authoritative muzzle visibility trace. Using
     // AAIController::LineOfSightTo here as a second gate prevented suppression
     // fire in the generated World Partition map when the target was visible
     // from the muzzle but not from the controller's abstract eye point.
-    if (Distance > 4500.0f || FireCooldown > 0.0f) return;
+    if (Distance < MinimumFireRange || Distance > 4500.0f || FireCooldown > 0.0f) return;
     if (AEmberEnemyCharacter* Enemy = Cast<AEmberEnemyCharacter>(ControlledPawn))
     {
         Enemy->FireAt(Target);

@@ -64,3 +64,10 @@ M5–M9 remain incomplete. Prototype systems or configuration may exist, but non
 - Added enemy health bars, player damage-edge feedback, stronger camera/weapon recoil, melee, interaction, mouse-wheel weapon switching, mission-intel and full-controls overlays.
 - Added keyboard bindings for `E`, `F`, `V`, mouse wheel, `Tab`, `H`, `Left Ctrl` and `P` while preserving movement, aim, automatic fire, reload, shoulder swap and slots 1–6.
 - Final source verification: Mac Editor/arm64 compile passed; `Saved/Automation/20260714T161653Z` contains 8 passed / 0 failed; content validation completed with 0 errors and one pre-existing device-profile priority warning.
+
+## Combat separation and damage recovery pass — 0.3.3-dev.1
+
+- Corrected the close-range AI defect shown in owner evidence: enemy flank goals now stay on an 18.5 m tactical ring instead of converging 6.5 m from the player, emergency retreat begins at 11.5 m, and enemy rifles cannot fire inside 9 m.
+- Player and enemy capsules explicitly block the Pawn channel, and enemy movement uses bounded RVO crowd avoidance. Both capsules now block Visibility so authoritative rifle traces can hit the character instead of relying on the unobstructed accuracy fallback.
+- Player death recovery stops residual movement, restores health and armor, and returns the player to the latest mission checkpoint. Enemy death still disables its capsule and enables bounded ragdoll cleanup.
+- Verification in progress: Mac Editor compile passed; `Saved/Automation/20260714T170733Z` contains 9 passed / 0 failed, including new collision/avoidance/spacing coverage; content validation completed with 0 errors and one pre-existing device-profile priority warning. A native Metal run remained stable for several minutes with the nearest visible hostile separated at tactical range, the player in a stable two-handed pose, an enemy health bar visible, and incoming fire reducing player health from 100 to 94 plus visible armor loss. Packaged runtime and hosted-download verification remain required before publication.
