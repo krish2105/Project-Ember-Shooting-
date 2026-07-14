@@ -9,6 +9,8 @@
 | No approved art/audio library | High | Use tracked functional placeholders; license-review each Fab candidate |
 | Previous packaged player used flying/zero-gravity workaround | High | Replaced with normal walking foundation; require fresh packaged movement smoke test before M0 acceptance |
 | Duplicate input routes obscured failures and could double-fire | High | Consolidated to one action-binding path; keep automated mapping checks and physical device test records |
+| First mouse click can be consumed by packaged-window capture | High | Aim now toggles on press and shows explicit FOV/HUD state; require fresh keyboard/mouse verification |
+| Combat actions lacked visible presentation feedback | High | Added deterministic weapon silhouette, muzzle/tracer/impact feedback, hostile labels and hit marker; final licensed presentation remains gated |
 | Imported Third Person Blueprint references missing template C++ module | Medium | Generator now assigns the mannequin and available Animation Blueprint directly |
 | AAA presentation requested without asset budget or approved content | Critical | Do not mislabel placeholders; obtain approved licensed/commissioned environment, weapon, character, animation and audio content |
 | 24 GB below Epic recommendation | Medium | Monitor DDC, shader compile, cook memory and free disk space |

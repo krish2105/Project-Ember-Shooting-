@@ -338,6 +338,9 @@ def assemble_harbor(game_mode_class):
     enemy_class = unreal.load_class(None, "/Script/EmberAI.EmberEnemyCharacter")
     if enemy_class:
         enemy_locations = [
+            unreal.Vector(-42000, 500, 250),
+            unreal.Vector(-40500, -1800, 250),
+            unreal.Vector(-39200, 2200, 250),
             unreal.Vector(-24000, 5000, 250),
             unreal.Vector(-8000, -18000, 250),
             unreal.Vector(8000, -12000, 250),

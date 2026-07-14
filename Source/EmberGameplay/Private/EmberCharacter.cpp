@@ -67,25 +67,45 @@ AEmberCharacter::AEmberCharacter()
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(
         TEXT("/Engine/BasicShapes/Cube.Cube"));
+    // Functional weapon silhouette. It is anchored to the capsule so its
+    // forward axis is deterministic while the final rig/socket art is pending.
     WeaponBodyVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponBodyVisual"));
-    WeaponBodyVisual->SetupAttachment(GetMesh(), TEXT("hand_r"));
+    WeaponBodyVisual->SetupAttachment(RootComponent);
     WeaponBodyVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    WeaponBodyVisual->SetRelativeLocation(FVector(12.0f, 2.0f, -1.0f));
-    WeaponBodyVisual->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
-    WeaponBodyVisual->SetRelativeScale3D(FVector(0.55f, 0.08f, 0.10f));
+    WeaponBodyVisual->SetRelativeLocation(FVector(38.0f, 25.0f, 57.0f));
+    WeaponBodyVisual->SetRelativeScale3D(FVector(0.38f, 0.065f, 0.075f));
     WeaponBarrelVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponBarrelVisual"));
-    WeaponBarrelVisual->SetupAttachment(WeaponBodyVisual);
+    WeaponBarrelVisual->SetupAttachment(RootComponent);
     WeaponBarrelVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    WeaponBarrelVisual->SetRelativeLocation(FVector(58.0f, 0.0f, 2.0f));
-    WeaponBarrelVisual->SetRelativeScale3D(FVector(0.65f, 0.40f, 0.40f));
+    WeaponBarrelVisual->SetRelativeLocation(FVector(73.0f, 25.0f, 59.0f));
+    WeaponBarrelVisual->SetRelativeScale3D(FVector(0.34f, 0.025f, 0.025f));
+    WeaponStockVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponStockVisual"));
+    WeaponStockVisual->SetupAttachment(RootComponent);
+    WeaponStockVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    WeaponStockVisual->SetRelativeLocation(FVector(10.0f, 25.0f, 56.0f));
+    WeaponStockVisual->SetRelativeScale3D(FVector(0.22f, 0.055f, 0.065f));
+    WeaponMagazineVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMagazineVisual"));
+    WeaponMagazineVisual->SetupAttachment(RootComponent);
+    WeaponMagazineVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    WeaponMagazineVisual->SetRelativeLocation(FVector(38.0f, 25.0f, 47.0f));
+    WeaponMagazineVisual->SetRelativeRotation(FRotator(0.0f, 12.0f, 0.0f));
+    WeaponMagazineVisual->SetRelativeScale3D(FVector(0.10f, 0.05f, 0.16f));
+    WeaponSightVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponSightVisual"));
+    WeaponSightVisual->SetupAttachment(RootComponent);
+    WeaponSightVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    WeaponSightVisual->SetRelativeLocation(FVector(44.0f, 25.0f, 67.0f));
+    WeaponSightVisual->SetRelativeScale3D(FVector(0.09f, 0.025f, 0.045f));
     if (CubeMesh.Succeeded())
     {
         WeaponBodyVisual->SetStaticMesh(CubeMesh.Object);
         WeaponBarrelVisual->SetStaticMesh(CubeMesh.Object);
+        WeaponStockVisual->SetStaticMesh(CubeMesh.Object);
+        WeaponMagazineVisual->SetStaticMesh(CubeMesh.Object);
+        WeaponSightVisual->SetStaticMesh(CubeMesh.Object);
     }
     MuzzleFlashLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("MuzzleFlashLight"));
-    MuzzleFlashLight->SetupAttachment(WeaponBarrelVisual);
-    MuzzleFlashLight->SetRelativeLocation(FVector(110.0f, 0.0f, 0.0f));
+    MuzzleFlashLight->SetupAttachment(RootComponent);
+    MuzzleFlashLight->SetRelativeLocation(FVector(110.0f, 25.0f, 59.0f));
     MuzzleFlashLight->SetAttenuationRadius(450.0f);
     MuzzleFlashLight->SetLightColor(FLinearColor(1.0f, 0.35f, 0.04f));
     MuzzleFlashLight->SetIntensity(0.0f);
@@ -100,6 +120,7 @@ void AEmberCharacter::BeginPlay()
     Movement->SetPlaneConstraintEnabled(false);
     Movement->SetMovementMode(MOVE_Walking);
     InitializeStarterWeapon();
+    Weapon->OnShotResolved.AddDynamic(this, &AEmberCharacter::HandleShotResolved);
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
         PC->bShowMouseCursor = false;
@@ -182,20 +203,23 @@ void AEmberCharacter::SetAiming(bool bNewAiming)
     bAiming = bNewAiming;
     CameraBoom->TargetArmLength = bAiming ? AimArmLength : ExplorationArmLength;
     CameraBoom->SocketOffset.Z = bAiming ? 58.0f : 70.0f;
+    FollowCamera->SetFieldOfView(bAiming ? 68.0f : 90.0f);
     bUseControllerRotationYaw = bAiming;
     GetCharacterMovement()->bOrientRotationToMovement = !bAiming;
 }
 
-void AEmberCharacter::AimStarted() { SetAiming(true); }
-void AEmberCharacter::AimCompleted() { SetAiming(false); }
+// Toggle aiming is intentional: a normal right-click visibly enters/exits ADS
+// and does not depend on the first click also being used to capture the window.
+void AEmberCharacter::AimStarted() { SetAiming(!bAiming); }
+void AEmberCharacter::AimCompleted() {}
 void AEmberCharacter::FireStarted()
 {
     if (!Weapon) return;
     bFireInputHeld = true;
-    if (Weapon->RequestFire(BuildShotRequest())) PlayGunshotFeedback();
+    TryFire();
     if (Weapon->IsAutomatic())
         GetWorldTimerManager().SetTimer(AutomaticFireTimer, [this]() {
-            if (Weapon && Weapon->RequestFire(BuildShotRequest())) PlayGunshotFeedback();
+            TryFire();
         }, 0.06f, true);
 }
 void AEmberCharacter::FireCompleted()
@@ -205,6 +229,74 @@ void AEmberCharacter::FireCompleted()
     if (Weapon) Weapon->StopFire();
 }
 void AEmberCharacter::Reload() { if (Weapon) Weapon->BeginReload(); }
+
+bool AEmberCharacter::TryFire()
+{
+    if (!Weapon) return false;
+    LastShotRequest = BuildShotRequest();
+    if (!Weapon->RequestFire(LastShotRequest)) return false;
+    PlayGunshotFeedback();
+    return true;
+}
+
+void AEmberCharacter::HandleShotResolved(const FEmberShotResult& Result)
+{
+    UStaticMesh* TracerMesh = WeaponBarrelVisual ? WeaponBarrelVisual->GetStaticMesh() : nullptr;
+    const FVector End = Result.bHit
+        ? FVector(Result.ImpactPoint)
+        : FVector(LastShotRequest.CameraOrigin) + FVector(LastShotRequest.DesiredDirection) * 7000.0f;
+    const FVector Start = FVector(LastShotRequest.MuzzleOrigin);
+    const FVector Delta = End - Start;
+    const float Distance = Delta.Size();
+    if (TracerMesh && Distance > 1.0f)
+    {
+        UStaticMeshComponent* Tracer = NewObject<UStaticMeshComponent>(this);
+        Tracer->SetStaticMesh(TracerMesh);
+        Tracer->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Tracer->SetCastShadow(false);
+        Tracer->RegisterComponent();
+        Tracer->SetWorldLocation(Start + Delta * 0.5f);
+        Tracer->SetWorldRotation(Delta.Rotation());
+        Tracer->SetWorldScale3D(FVector(Distance / 100.0f, 0.012f, 0.012f));
+        FTimerHandle TracerTimer;
+        TWeakObjectPtr<UStaticMeshComponent> WeakTracer(Tracer);
+        GetWorldTimerManager().SetTimer(TracerTimer, [WeakTracer]() {
+            if (WeakTracer.IsValid()) WeakTracer->DestroyComponent();
+        }, 0.055f, false);
+    }
+    if (Result.bHit)
+    {
+        LastHitTimeSeconds = GetWorld()->GetTimeSeconds();
+        UPointLightComponent* Impact = NewObject<UPointLightComponent>(this);
+        Impact->SetLightColor(Result.HitActor && Result.HitActor->ActorHasTag(TEXT("EmberEnemy"))
+            ? FLinearColor(1.0f, 0.05f, 0.02f) : FLinearColor(1.0f, 0.55f, 0.08f));
+        Impact->SetIntensity(5000.0f);
+        Impact->SetAttenuationRadius(240.0f);
+        Impact->RegisterComponent();
+        Impact->SetWorldLocation(FVector(Result.ImpactPoint) + FVector(Result.ImpactNormal) * 3.0f);
+        FTimerHandle ImpactTimer;
+        TWeakObjectPtr<UPointLightComponent> WeakImpact(Impact);
+        GetWorldTimerManager().SetTimer(ImpactTimer, [WeakImpact]() {
+            if (WeakImpact.IsValid()) WeakImpact->DestroyComponent();
+        }, 0.09f, false);
+    }
+}
+
+bool AEmberCharacter::HasHostileUnderCrosshair() const
+{
+    if (!GetWorld() || !FollowCamera) return false;
+    FCollisionQueryParams Params(SCENE_QUERY_STAT(EmberTargetCheck), true, this);
+    FHitResult Hit;
+    const FVector Start = FollowCamera->GetComponentLocation();
+    const FVector End = Start + FollowCamera->GetForwardVector() * 30000.0f;
+    return GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params)
+        && Hit.GetActor() && Hit.GetActor()->ActorHasTag(TEXT("EmberEnemy"));
+}
+
+bool AEmberCharacter::ShouldShowHitMarker() const
+{
+    return GetWorld() && GetWorld()->GetTimeSeconds() - LastHitTimeSeconds < 0.18;
+}
 
 void AEmberCharacter::PlayGunshotFeedback()
 {
@@ -308,7 +400,7 @@ FEmberShotRequest AEmberCharacter::BuildShotRequest() const
     Request.CameraOrigin = FollowCamera->GetComponentLocation();
     Request.DesiredDirection = FollowCamera->GetForwardVector();
     Request.MuzzleOrigin = WeaponBarrelVisual
-        ? WeaponBarrelVisual->GetComponentLocation()
+        ? MuzzleFlashLight->GetComponentLocation()
         : GetActorLocation() + GetActorForwardVector() * 50.0f;
     Request.MaximumRange = Weapon ? Weapon->GetMaximumRange() : 10000.0f;
     return Request;

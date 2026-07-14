@@ -5,6 +5,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/InputSettings.h"
 #include "InputCoreTypes.h"
+#include "Components/StaticMeshComponent.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEmberPlayerWalkingFoundationTest,
     "ProjectEmber.Player.WalkingFoundation",
@@ -44,5 +45,23 @@ bool FEmberPlayerWalkingFoundationTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("Keyboard reload is mapped"), HasActionKey(TEXT("Reload"), EKeys::R));
     TestTrue(TEXT("Controller fire is mapped"), HasActionKey(TEXT("Fire"), EKeys::Gamepad_RightTrigger));
     TestTrue(TEXT("Controller aim is mapped"), HasActionKey(TEXT("Aim"), EKeys::Gamepad_LeftTrigger));
+
+    AEmberCharacter* MutableCharacter = GetMutableDefault<AEmberCharacter>();
+    MutableCharacter->SetAiming(true);
+    TestTrue(TEXT("Aim state can be entered"), MutableCharacter->IsAiming());
+    TestTrue(TEXT("Aim state turns the pawn with the controller"), MutableCharacter->bUseControllerRotationYaw);
+    TestFalse(TEXT("Aim state disables orient-to-movement"),
+        MutableCharacter->GetCharacterMovement()->bOrientRotationToMovement);
+    MutableCharacter->SetAiming(false);
+    TestFalse(TEXT("Aim state can be exited"), MutableCharacter->IsAiming());
+
+    TestNotNull(TEXT("Weapon body visual exists"),
+        Cast<UStaticMeshComponent>(MutableCharacter->GetDefaultSubobjectByName(TEXT("WeaponBodyVisual"))));
+    TestNotNull(TEXT("Weapon barrel visual exists"),
+        Cast<UStaticMeshComponent>(MutableCharacter->GetDefaultSubobjectByName(TEXT("WeaponBarrelVisual"))));
+    TestNotNull(TEXT("Weapon stock visual exists"),
+        Cast<UStaticMeshComponent>(MutableCharacter->GetDefaultSubobjectByName(TEXT("WeaponStockVisual"))));
+    TestNotNull(TEXT("Weapon magazine visual exists"),
+        Cast<UStaticMeshComponent>(MutableCharacter->GetDefaultSubobjectByName(TEXT("WeaponMagazineVisual"))));
     return true;
 }

@@ -9,6 +9,7 @@ class UEmberArmorComponent;
 class UEmberDamageReceiverComponent;
 class UEmberHealthComponent;
 class UEmberTacticalStateComponent;
+class UTextRenderComponent;
 
 UCLASS()
 class EMBERAI_API AEmberEnemyCharacter : public ACharacter, public IEmberDamageable
@@ -24,4 +25,5 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UEmberArmorComponent> Armor;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UEmberDamageReceiverComponent> DamageReceiver;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UEmberTacticalStateComponent> TacticalState;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UTextRenderComponent> HostileMarker;
 };

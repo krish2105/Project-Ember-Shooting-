@@ -30,6 +30,8 @@ public:
     UFUNCTION(BlueprintCallable) void SwapShoulder();
     UFUNCTION(BlueprintPure) bool IsAiming() const { return bAiming; }
     UFUNCTION(BlueprintPure) bool IsFiringInputHeld() const { return bFireInputHeld; }
+    UFUNCTION(BlueprintPure) bool HasHostileUnderCrosshair() const;
+    UFUNCTION(BlueprintPure) bool ShouldShowHitMarker() const;
     UFUNCTION(BlueprintPure) UEmberHealthComponent* GetHealthComponent() const { return Health; }
     UFUNCTION(BlueprintPure) UEmberArmorComponent* GetArmorComponent() const { return Armor; }
     UFUNCTION(BlueprintPure) UEmberWeaponComponent* GetWeaponComponent() const { return Weapon; }
@@ -38,6 +40,8 @@ protected:
     void AimCompleted();
     void FireStarted();
     void FireCompleted();
+    bool TryFire();
+    UFUNCTION() void HandleShotResolved(const FEmberShotResult& Result);
     void Reload();
     void TogglePauseMenu();
     void SelectWeapon1();
@@ -69,6 +73,9 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UEmberInteractionComponent> Interaction;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UStaticMeshComponent> WeaponBodyVisual;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UStaticMeshComponent> WeaponBarrelVisual;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UStaticMeshComponent> WeaponStockVisual;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UStaticMeshComponent> WeaponMagazineVisual;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UStaticMeshComponent> WeaponSightVisual;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UPointLightComponent> MuzzleFlashLight;
 
     UPROPERTY(EditDefaultsOnly, Category="Camera") float ExplorationArmLength = 350.0f;
@@ -81,4 +88,6 @@ protected:
     FTimerHandle AutomaticFireTimer;
     FTimerHandle MuzzleFlashTimer;
     bool bFireInputHeld = false;
+    double LastHitTimeSeconds = -TNumericLimits<double>::Max();
+    FEmberShotRequest LastShotRequest;
 };

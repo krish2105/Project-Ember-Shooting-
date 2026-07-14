@@ -6,6 +6,7 @@
 #include "EmberTacticalStateComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/TextRenderComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -20,6 +21,14 @@ AEmberEnemyCharacter::AEmberEnemyCharacter()
     Armor = CreateDefaultSubobject<UEmberArmorComponent>(TEXT("Armor"));
     DamageReceiver = CreateDefaultSubobject<UEmberDamageReceiverComponent>(TEXT("DamageReceiver"));
     TacticalState = CreateDefaultSubobject<UEmberTacticalStateComponent>(TEXT("TacticalState"));
+    HostileMarker = CreateDefaultSubobject<UTextRenderComponent>(TEXT("HostileMarker"));
+    HostileMarker->SetupAttachment(RootComponent);
+    HostileMarker->SetRelativeLocation(FVector(0.0f, 0.0f, 125.0f));
+    HostileMarker->SetRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));
+    HostileMarker->SetText(FText::FromString(TEXT("HOSTILE")));
+    HostileMarker->SetTextRenderColor(FColor(255, 35, 20));
+    HostileMarker->SetHorizontalAlignment(EHTA_Center);
+    HostileMarker->SetWorldSize(24.0f);
     Health->OnDeath.AddDynamic(this, &AEmberEnemyCharacter::HandleDeath);
 
     GetCharacterMovement()->MaxWalkSpeed = 360.0f;
