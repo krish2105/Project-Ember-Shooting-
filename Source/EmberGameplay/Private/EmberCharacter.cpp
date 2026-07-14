@@ -237,7 +237,7 @@ void AEmberCharacter::MoveRight(float Value)
 
 void AEmberCharacter::Turn(float Value)
 {
-    if (FMath::IsNearlyZero(Value)) return;
+    if (FMath::IsNearlyZero(Value) || !Controller || Controller->IsLookInputIgnored()) return;
     AddControllerYawInput(Value);
     if (!bLookInputConfirmed)
     {
@@ -248,7 +248,7 @@ void AEmberCharacter::Turn(float Value)
 
 void AEmberCharacter::LookUp(float Value)
 {
-    if (FMath::IsNearlyZero(Value)) return;
+    if (FMath::IsNearlyZero(Value) || !Controller || Controller->IsLookInputIgnored()) return;
     AddControllerPitchInput(Value);
     if (!bLookInputConfirmed)
     {
