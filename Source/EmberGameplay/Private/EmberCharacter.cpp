@@ -8,6 +8,7 @@
 #include "EmberHealthComponent.h"
 #include "EmberInteractionComponent.h"
 #include "EmberInventoryComponent.h"
+#include "EmberLog.h"
 #include "EmberWeaponComponent.h"
 #include "EmberWeaponDefinition.h"
 #include "Engine/AssetManager.h"
@@ -210,7 +211,11 @@ void AEmberCharacter::SetAiming(bool bNewAiming)
 
 // Toggle aiming is intentional: a normal right-click visibly enters/exits ADS
 // and does not depend on the first click also being used to capture the window.
-void AEmberCharacter::AimStarted() { SetAiming(!bAiming); }
+void AEmberCharacter::AimStarted()
+{
+    SetAiming(!bAiming);
+    UE_LOG(LogEmberCombat, Log, TEXT("Player aim toggled: %s"), bAiming ? TEXT("AIM") : TEXT("HIP"));
+}
 void AEmberCharacter::AimCompleted() {}
 void AEmberCharacter::FireStarted()
 {
@@ -228,13 +233,19 @@ void AEmberCharacter::FireCompleted()
     GetWorldTimerManager().ClearTimer(AutomaticFireTimer);
     if (Weapon) Weapon->StopFire();
 }
-void AEmberCharacter::Reload() { if (Weapon) Weapon->BeginReload(); }
+void AEmberCharacter::Reload()
+{
+    const bool bStarted = Weapon && Weapon->BeginReload();
+    UE_LOG(LogEmberCombat, Log, TEXT("Player reload requested: %s"), bStarted ? TEXT("STARTED") : TEXT("REJECTED"));
+}
 
 bool AEmberCharacter::TryFire()
 {
     if (!Weapon) return false;
     LastShotRequest = BuildShotRequest();
     if (!Weapon->RequestFire(LastShotRequest)) return false;
+    UE_LOG(LogEmberCombat, Log, TEXT("Player weapon fired; magazine=%d reserve=%d"),
+        Weapon->GetMagazineAmmo(), Weapon->GetReserveAmmo());
     PlayGunshotFeedback();
     return true;
 }
