@@ -26,14 +26,17 @@ Driving:
 - Handbrake: `Space` / controller bottom button
 - Exit beside the car: `E` or `F` / controller top button
 
-## Verification before packaging
+## Verification
 
 - UE 5.8 Mac Editor arm64 compile: passed.
 - Editor map generation: passed with four persistent driveable vehicles and zero Python errors.
 - Automation: 10 passed, 0 failed (`Saved/Automation/20260714T223219Z`).
 - Content validation: 0 errors; one existing device-profile console-variable priority warning.
 - Native Metal drive route: entry succeeded, throttle and steering were accepted, the real vehicle moved 229.1 cm, current road height was 28.3 cm, the chase camera captured correctly, and safe exit/re-possession succeeded.
-- Development cook/package, fresh extraction, packaged drive route, arm64/signature verification and final SHA-256: pending the release archive pass.
+- Development build/cook/package/archive passed at `Releases/Development/20260715T030000Z`.
+- A fresh archive extraction is thin arm64 and passes deep/strict ad-hoc signature verification.
+- The fresh packaged Metal drive route entered the nearest car, accepted throttle and steering, moved 270.7 cm at 4.0 KPH, captured the Ember-owned rear chase view, exited safely and shut down without a fatal error or assertion.
+- Release ZIP SHA-256: `dfcb13242fa86daca6cd364b06a6e2064dc119633cb8afaf7a042895177ee996`.
 
 ## Honest limitations
 
