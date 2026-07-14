@@ -14,7 +14,12 @@
 - Automation: 9 passed, 0 failed (`Saved/Automation/20260714T170733Z`).
 - Content validation: 0 errors; one existing device-profile console-variable priority warning.
 - Live native Metal: after several minutes of engagement the nearest hostile remained separated at tactical range, the player retained a stable two-handed shoulder pose, the enemy health bar was visible, and incoming fire reduced player health from 100 to 94 plus visible armor loss.
-- Package, architecture, signing and hosted-download checks are recorded only after the release artifact passes them.
+- Clean Development cook/package/archive: passed (`Releases/Development/20260714T172801Z`).
+- Fresh extraction: executable is thin arm64 and deep/strict ad-hoc-signature verification passed.
+- Fresh packaged Metal run: enemies remained separated; logs recorded target hits applying 5.6 health plus 8.4 armor damage, full death, and health/armor checkpoint recovery without a blocking crash.
+- ZIP SHA-256: `8f9c81c92f8c41456598b19f830acb72101a00fcda18b37f3a9ca7d624fba971`.
+- Hosted artifact: [download the verified native Mac ZIP](https://github.com/krish2105/Project-Ember-Shooting-/releases/download/v0.3.3-dev.1/ProjectEmber-mac-arm64-Development.zip).
+- Hosted verification: a fresh GitHub release download reproduced the local SHA-256 exactly.
 
 ## Controls
 
