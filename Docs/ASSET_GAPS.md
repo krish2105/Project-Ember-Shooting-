@@ -13,3 +13,5 @@ The requested supernatural-action tone is an art-direction reference only. No ch
 The final-art gate blocks any claim of a Call-of-Duty-class or AAA presentation. Required owner decisions are an approved asset budget, original art direction, and per-item licensing/commission records.
 
 The new over-the-shoulder combat target additionally requires an original modular harbor-office interior, props and cover set; six weapon-specific rigs and montage sets; directional enemy hit reactions/physical-animation profiles; muzzle, smoke, tracer and twelve-surface Niagara variants; layered indoor/outdoor weapon audio; localized dialogue/captions; and final character/enemy materials. The supplied firefight screenshot grants no asset rights and is not an asset source.
+
+The generated stairwell geometry and per-slot weapon transforms are functional layout/presentation placeholders. They establish traversal dimensions and the six-mesh runtime contract, but they are not final environment or weapon art.

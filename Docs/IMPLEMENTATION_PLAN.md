@@ -63,6 +63,8 @@ The supplied cinematic third-person firefight is a presentation reference, not a
 - Place bounded navigation, cover points, encounter volumes, audio volumes, checkpoint trigger and Data Layer membership. Include the encounter in HLOD/streaming and content validators.
 - Exit gate: the room is fully collidable and lit, no player or AI falls through geometry, the objective can be completed by combat or the specified alternate route, subtitles scale correctly, checkpoint restore recreates the encounter deterministically, and exterior/interior transitions do not expose an unloaded void.
 
+The indoor route includes an original two-flight stairwell inspired only by the supplied navigation/readability qualities: constrained shoulder-camera clearance, a landing that breaks line of sight, motivated green exit guidance, warm/cool light contrast, close-range pursuit and a transition into the office encounter. It must support traversal in both directions and cannot reuse the reference character, uniform, architecture, signage or encounter scripting.
+
 ### Step 6 — End-to-end verification and releasable evidence (M5–M9)
 
 - Add functional tests for aim/fire/reload/swap, target damage, hit reaction, enemy response, captions, checkpoint restoration and encounter completion. Record explicit failures; do not convert missing evidence into a skip.

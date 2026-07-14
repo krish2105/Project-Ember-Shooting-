@@ -78,6 +78,10 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UStaticMeshComponent> WeaponBodyVisual;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UStaticMeshComponent> WeaponBarrelVisual;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UPointLightComponent> MuzzleFlashLight;
+    /** One independently authored presentation entry per mission weapon slot. */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon|Presentation") TArray<TObjectPtr<UStaticMesh>> WeaponPresentationMeshes;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon|Presentation") TArray<FTransform> WeaponPresentationTransforms;
+    /** Compatibility fallback while final per-slot assets are being approved. */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon|Presentation") TObjectPtr<UStaticMesh> PrimaryWeaponMesh;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon|Presentation") TObjectPtr<UStaticMesh> SidearmWeaponMesh;
 

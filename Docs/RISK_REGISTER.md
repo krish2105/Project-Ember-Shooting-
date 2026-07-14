@@ -25,3 +25,4 @@
 | Cinematic effects can hide shot-alignment or state bugs | High | Validate camera/muzzle rays and authoritative damage separately; require packaged interaction evidence, not screenshots alone |
 | Physical hit reactions can destabilize AI navigation and collision | High | Use bounded additive reactions and physical-animation profiles; reserve ragdoll for validated death states |
 | Indoor effects exceed Mac frame/audio budgets | High | Pool effects, cap decals/lights/voices, provide independent scalability fallbacks and profile the authored encounter |
+| Six weapon slots accidentally presented as six finished models | Critical | Runtime now supports six independent mesh entries; keep rifle/pistol stand-ins recorded until four additional approved models and all six animation sets pass the final-art gate |

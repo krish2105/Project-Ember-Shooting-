@@ -104,10 +104,6 @@ void AEmberCharacter::BeginPlay()
     Movement->GravityScale = 1.0f;
     Movement->SetPlaneConstraintEnabled(false);
     Movement->SetMovementMode(MOVE_Walking);
-    if (WeaponBodyVisual && PrimaryWeaponMesh)
-    {
-        WeaponBodyVisual->SetStaticMesh(PrimaryWeaponMesh);
-    }
     InitializeStarterWeapon();
     Weapon->OnShotResolved.AddDynamic(this, &AEmberCharacter::HandleShotResolved);
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
@@ -444,10 +440,17 @@ void AEmberCharacter::EquipWeaponIndex(int32 Index)
 void AEmberCharacter::UpdateWeaponPresentation(int32 Index)
 {
     if (!WeaponBodyVisual || Index < 0 || Index >= 6) return;
-    UStaticMesh* DesiredMesh = Index == 5 && SidearmWeaponMesh
-        ? SidearmWeaponMesh.Get() : PrimaryWeaponMesh.Get();
+    UStaticMesh* DesiredMesh = WeaponPresentationMeshes.IsValidIndex(Index)
+        ? WeaponPresentationMeshes[Index].Get() : nullptr;
+    if (!DesiredMesh)
+    {
+        DesiredMesh = Index == 5 && SidearmWeaponMesh
+            ? SidearmWeaponMesh.Get() : PrimaryWeaponMesh.Get();
+    }
     WeaponBodyVisual->SetStaticMesh(DesiredMesh);
-    WeaponBodyVisual->SetRelativeScale3D(FVector::OneVector);
+    const FTransform PresentationTransform = WeaponPresentationTransforms.IsValidIndex(Index)
+        ? WeaponPresentationTransforms[Index] : FTransform::Identity;
+    WeaponBodyVisual->SetRelativeTransform(PresentationTransform);
 }
 
 void AEmberCharacter::SwapShoulder()

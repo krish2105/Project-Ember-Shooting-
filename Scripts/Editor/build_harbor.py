@@ -70,6 +70,25 @@ def configure_character_blueprint():
         raise RuntimeError("Shooter presentation meshes are unavailable")
     cdo.set_editor_property("primary_weapon_mesh", primary_weapon)
     cdo.set_editor_property("sidearm_weapon_mesh", sidearm_weapon)
+    # Runtime presentation is now slot-specific. The approved UE template only
+    # provides a rifle and pistol, so these remain explicitly tracked stand-ins
+    # until six original/approved models are available; gameplay no longer
+    # assumes that all primary slots must share a single mesh or transform.
+    cdo.set_editor_property(
+        "weapon_presentation_meshes",
+        [primary_weapon, primary_weapon, primary_weapon, primary_weapon, primary_weapon, sidearm_weapon],
+    )
+    cdo.set_editor_property(
+        "weapon_presentation_transforms",
+        [
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 90.0, 0.0), scale=unreal.Vector(1.0, 1.0, 1.0)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 90.0, 0.0), scale=unreal.Vector(0.86, 0.92, 0.92)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 90.0, 0.0), scale=unreal.Vector(0.96, 1.18, 1.10)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 90.0, 0.0), scale=unreal.Vector(1.12, 0.94, 0.94)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 90.0, 0.0), scale=unreal.Vector(1.08, 1.06, 1.08)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 90.0, 0.0), scale=unreal.Vector(1.0, 1.0, 1.0)),
+        ],
+    )
     unreal.BlueprintEditorLibrary.compile_blueprint(blueprint)
     unreal.EditorAssetLibrary.save_loaded_asset(blueprint)
     return blueprint.generated_class()
@@ -185,10 +204,45 @@ def assemble_harbor(game_mode_class):
     spawn_mesh(cube, "Insertion_Foundation", unreal.Vector(-45000, 0, -50), unreal.Vector(160, 160, 1))
     spawn_mesh(plane, "Harbor_Waterfront", unreal.Vector(0, -47000, 0), unreal.Vector(500, 80, 1))
 
-    # Tutorial insertion lane and security office.
+    # Tutorial insertion lane and an original security-office stairwell. The
+    # previous office was one solid cube and could not support interior play.
     spawn_mesh(cube, "Insertion_Wall_A", unreal.Vector(-43000, 6000, 250), unreal.Vector(120, 3, 5))
     spawn_mesh(cube, "Insertion_Wall_B", unreal.Vector(-43000, -6000, 250), unreal.Vector(120, 3, 5))
-    spawn_mesh(cube, "Security_Office", unreal.Vector(-30000, 12000, 400), unreal.Vector(90, 70, 8))
+    office = unreal.Vector(-30000, 12000, 0)
+    spawn_mesh(cube, "Stairwell_Floor_Lower", office + unreal.Vector(0, 0, 25), unreal.Vector(90, 70, 0.5))
+    spawn_mesh(cube, "Stairwell_Floor_Upper", office + unreal.Vector(0, 0, 2025), unreal.Vector(90, 70, 0.5))
+    spawn_mesh(cube, "Stairwell_Wall_West", office + unreal.Vector(-4450, 0, 1100), unreal.Vector(1, 70, 22))
+    spawn_mesh(cube, "Stairwell_Wall_East", office + unreal.Vector(4450, 0, 1100), unreal.Vector(1, 70, 22))
+    spawn_mesh(cube, "Stairwell_Wall_North_A", office + unreal.Vector(-2600, 3450, 1100), unreal.Vector(37, 1, 22))
+    spawn_mesh(cube, "Stairwell_Wall_North_B", office + unreal.Vector(2600, 3450, 1100), unreal.Vector(37, 1, 22))
+    spawn_mesh(cube, "Stairwell_Wall_South_A", office + unreal.Vector(-2600, -3450, 1100), unreal.Vector(37, 1, 22))
+    spawn_mesh(cube, "Stairwell_Wall_South_B", office + unreal.Vector(2600, -3450, 1100), unreal.Vector(37, 1, 22))
+    # Two walkable flights and a landing create a close-quarters descent route.
+    spawn_mesh(ramp, "Stairwell_Ramp_Upper", office + unreal.Vector(-2000, 900, 1050), unreal.Vector(32, 18, 18), unreal.Rotator(0, 0, 0))
+    spawn_mesh(cube, "Stairwell_Landing", office + unreal.Vector(0, 900, 1025), unreal.Vector(16, 22, 0.5))
+    spawn_mesh(ramp, "Stairwell_Ramp_Lower", office + unreal.Vector(2000, 900, 50), unreal.Vector(-32, 18, 18), unreal.Rotator(0, 0, 0))
+    # Rail silhouettes and a luminous exit marker preserve depth/readability.
+    for side in (-1, 1):
+        spawn_mesh(cube, f"Stairwell_Rail_Upper_{side}", office + unreal.Vector(-2000, 900 + side * 1050, 1450), unreal.Vector(32, 0.08, 0.08))
+        spawn_mesh(cube, f"Stairwell_Rail_Lower_{side}", office + unreal.Vector(2000, 900 + side * 1050, 500), unreal.Vector(32, 0.08, 0.08))
+    spawn_mesh(cube, "Stairwell_ExitMarker", office + unreal.Vector(0, 3370, 1550), unreal.Vector(5, 0.2, 1.2))
+    for index, location in enumerate([
+        office + unreal.Vector(-2300, 900, 1750),
+        office + unreal.Vector(0, 900, 1250),
+        office + unreal.Vector(2300, 900, 700),
+    ]):
+        stair_light = ACTOR_SUBSYSTEM.spawn_actor_from_class(
+            unreal.PointLight, location, unreal.Rotator(0, 0, 0), transient=False
+        )
+        if stair_light:
+            generated(stair_light, f"Stairwell_Light_{index:02d}")
+            persistent(stair_light)
+            light_component = stair_light.get_editor_property("point_light_component")
+            light_component.set_editor_property("intensity", 6500.0 if index != 1 else 9000.0)
+            light_component.set_editor_property("attenuation_radius", 4200.0)
+            light_component.set_editor_property(
+                "light_color", unreal.Color(120, 190, 150, 255) if index == 1 else unreal.Color(255, 205, 155, 255)
+            )
 
     # Warehouse shell with a readable entrance and interior cover lanes.
     warehouse_center = unreal.Vector(18000, 18000, 0)
