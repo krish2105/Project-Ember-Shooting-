@@ -13,7 +13,11 @@
 - Automation: 9 passed, 0 failed (`Saved/Automation/20260714T181322Z`), including mouse-axis mappings and the hostile controller/mesh orientation contract.
 - Content validation: 0 errors; one existing device-profile console-variable priority warning.
 - Live native Metal: gameplay activation recorded `ignored=false`; real mouse delta reached the character; four spawned enemies independently recorded a target-facing dot product of `1.000`.
-- Clean Development cook/package/archive and fresh packaged verification: pending below.
+- Clean Development cook/package/archive: passed (`Releases/Development/20260714T183000Z`).
+- Fresh extraction: executable is thin arm64 and deep/strict ad-hoc-signature verification passed.
+- Fresh packaged Metal run: the harbor loaded, gameplay activation recorded `ignored=false`, post-activation mouse movement recorded a yaw delta, and all three initial patrol enemies recorded target-facing dot products of `1.000`; no fatal error or assertion was recorded.
+- ZIP SHA-256: `2dd901c9acdb7fba8e31c614da4f678f54a23258b54a7d6d66cf8aefd8b95801`.
+- Hosted artifact: [download the verified native Mac ZIP](https://github.com/krish2105/Project-Ember-Shooting-/releases/download/v0.3.4-dev.1/ProjectEmber-mac-arm64-Development.zip).
 
 ## Controls
 
