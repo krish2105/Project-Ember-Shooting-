@@ -29,4 +29,16 @@ Skipped tests remain visible failures of evidence and block a release claim.
 | Input devices | Action mappings, focus restore and binding conflict detection | Keyboard/mouse, Xbox-layout and PlayStation-layout each complete the encounter |
 | Release | Asset validation, automation result parsing, arm64 and signature checks | Fresh hosted download extracts, launches and completes the smoke route |
 
+## Driveable vehicle acceptance matrix
+
+| Area | Automated evidence | Packaged/manual evidence |
+|---|---|---|
+| Access | Driveable tag, interaction mappings, possession and occupied-seat contract | `E`, `F` or controller top button enters only a nearby unoccupied car |
+| Simulation | Modular chassis/engine/transmission/suspension/wheel component exists | Car accelerates, steers, brakes, reverses and handbrakes on the harbor road |
+| Camera | Ember chase-camera component, bounded orbit pitch and collision probe | Low third-person view stays outside geometry and mouse/right-stick orbit remains responsive |
+| Driver | Source mannequin is hidden while the seated pose clone is present | Driver is contained in the cabin and the original third-person character returns after exit |
+| Exit | Input debounce and capsule-overlap candidate selection | `E`, `F` or controller top button exits beside the stopped car without clipping |
+| Feedback | Speed, control-state and engine-load values are bounded | Vehicle HUD, speed, control guide and spatial engine tone respond while driving |
+| Runtime | Native Metal smoke enters, applies Chaos inputs, moves, captures and exits | Fresh packaged build repeats the route without fatal error or below-map camera |
+
 The reference-quality slice is not accepted from a screenshot alone. Evidence requires state assertions, packaged interaction, performance capture and a fresh-download run.

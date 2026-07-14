@@ -14,6 +14,7 @@
 #include "EmberInteractionComponent.h"
 #include "EmberInventoryComponent.h"
 #include "EmberLog.h"
+#include "EmberPlayerController.h"
 #include "EmberWeaponComponent.h"
 #include "EmberWeaponDefinition.h"
 #include "Engine/AssetManager.h"
@@ -345,8 +346,52 @@ void AEmberCharacter::Interact()
 {
     if (Interaction && FollowCamera)
     {
-        Interaction->TryInteract(FollowCamera->GetComponentLocation(), FollowCamera->GetForwardVector());
+        const FVector Origin = FollowCamera->GetComponentLocation();
+        const FVector Direction = FollowCamera->GetForwardVector();
+        if (Interaction->TryInteract(Origin, Direction)) return;
+        if (APawn* Vehicle = Interaction->FindDriveableVehicle(Origin, Direction))
+        {
+            if (AEmberPlayerController* PC = Cast<AEmberPlayerController>(GetController()))
+            {
+                PC->EnterVehicle(Vehicle, this);
+            }
+        }
     }
+}
+
+bool AEmberCharacter::HasDriveableVehicleUnderCrosshair() const
+{
+    return Interaction && FollowCamera
+        && Interaction->FindDriveableVehicle(FollowCamera->GetComponentLocation(),
+            FollowCamera->GetForwardVector()) != nullptr;
+}
+
+void AEmberCharacter::PrepareForVehicle(APawn* VehiclePawn)
+{
+    FireCompleted();
+    SetAiming(false);
+    StopSprint();
+    StopJumping();
+    GetCharacterMovement()->StopMovementImmediately();
+    GetCharacterMovement()->DisableMovement();
+    GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    if (VehiclePawn)
+    {
+        AttachToActor(VehiclePawn, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+    }
+    SetActorHiddenInGame(true);
+}
+
+void AEmberCharacter::RestoreFromVehicle(const FVector& ExitLocation, const FRotator& ExitRotation)
+{
+    DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+    SetActorLocationAndRotation(ExitLocation, ExitRotation, false, nullptr, ETeleportType::TeleportPhysics);
+    SetActorHiddenInGame(false);
+    GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
+    GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+    GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+    GetCharacterMovement()->MaxWalkSpeed = JogSpeed;
 }
 
 void AEmberCharacter::MeleeAttack()

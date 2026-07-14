@@ -312,6 +312,25 @@ def spawn_skeletal_set_dressing(mesh, label, location, scale, rotation=None, col
     return actor
 
 
+def spawn_driveable_vehicle(vehicle_class, label, location, rotation=None):
+    """Place Epic's complete modular sports-car pawn as an Ember vehicle."""
+    rotation = rotation or unreal.Rotator(0.0, 0.0, 0.0)
+    actor = ACTOR_SUBSYSTEM.spawn_actor_from_class(
+        vehicle_class, location, rotation, transient=False
+    )
+    if not actor:
+        raise RuntimeError(f"Unable to spawn driveable vehicle {label}")
+    generated(actor, label)
+    actor.set_editor_property("auto_possess_ai", unreal.AutoPossessAI.DISABLED)
+    actor.set_editor_property("auto_possess_player", unreal.AutoReceiveInput.DISABLED)
+    actor.set_editor_property(
+        "tags", [unreal.Name("EmberGenerated"), unreal.Name("EmberDriveableVehicle")]
+    )
+    persistent(actor)
+    actor.set_actor_scale3d(unreal.Vector(1.0, 1.0, 1.0))
+    return actor
+
+
 def remove_previous_generated_actors():
     # The source Open World template contains its own sun, sky, fog and post
     # process actors. Keeping those actors while also creating the authored
@@ -428,30 +447,34 @@ def assemble_foreground_city(cube, cylinder, sphere, chamfer):
                 material=MATERIALS.get("rust"),
             )
 
-    # Epic's UE-only Chaos Modular Vehicle example provides a complete PBR car
-    # (body, glass, chassis and tires) that can legally ship in this Unreal
-    # project. It replaces the earlier cube/chamfer vehicle placeholders while
-    # remaining inert cover rather than implying a driveable vehicle system.
-    sports_car = unreal.load_asset(
-        "/ChaosModularVehicleExamples/Models/SportsCar/SKM_SportsCar"
+    # Epic's UE-only Chaos Modular Vehicle example provides the complete PBR
+    # car, physics asset, suspension/wheels, modular simulation and vehicle
+    # animation Blueprint. Ember adds its own possession, driver-seat, exit,
+    # HUD and audio bridge in C++ while retaining Epic's real wheel simulation.
+    sports_car_class = unreal.load_class(
+        None,
+        "/ChaosModularVehicleExamples/Vehicles/ModularVehicle/SportsCar/"
+        "BP_ModularVehicleSimplifiedSkeletalSetup."
+        "BP_ModularVehicleSimplifiedSkeletalSetup_C",
     )
-    if not sports_car:
-        raise RuntimeError("Chaos Modular Vehicle PBR sports car is unavailable")
+    if not sports_car_class:
+        raise RuntimeError("Chaos Modular Vehicle sports-car pawn is unavailable")
 
-    # Wrecks and rubble establish readable combat cover at human scale.
-    wrecks = [(-34500, -2800, -8), (-18500, 3200, 12), (2500, -2400, -15), (14500, 3400, 5)]
-    for index, (x, y, yaw) in enumerate(wrecks):
-        spawn_skeletal_set_dressing(
-            sports_car, f"PBR_WreckedCar_{index:02d}", unreal.Vector(x, y, 58),
-            unreal.Vector(1.0, 1.0, 1.0), unreal.Rotator(0, yaw, 0), collision=True,
+    # The first car is within interaction range of insertion; the remaining
+    # cars support optional traversal later in the harbor. They are intact
+    # driveable vehicles, so the earlier misleading "wrecked" labels are gone.
+    vehicles = [(-44500, 0, 0), (-18500, 3200, 12), (2500, -2400, -15), (14500, 3400, 5)]
+    for index, (x, y, yaw) in enumerate(vehicles):
+        spawn_driveable_vehicle(
+            sports_car_class, f"Ember_DriveableCar_{index:02d}",
+            unreal.Vector(x, y, 120), unreal.Rotator(0, yaw, 0),
         )
-        # Small authored debris clusters visually integrate the clean example
-        # car into the damaged harbor without overwriting its supplied PBR
-        # material slots.
+        # Small roadside debris visually integrates the clean licensed car
+        # while leaving adequate clearance for suspension and safe entry.
         for debris in range(3):
             spawn_mesh(
-                chamfer, f"WreckedCar_Debris_{index:02d}_{debris:02d}",
-                unreal.Vector(x - 180 + debris * 210, y + 235, 42 + debris * 9),
+                chamfer, f"DriveableCar_Debris_{index:02d}_{debris:02d}",
+                unreal.Vector(x - 280 + debris * 260, y + 310, 42 + debris * 9),
                 unreal.Vector(1.8 + debris * 0.4, 1.2, 0.55),
                 unreal.Rotator(debris * 9, yaw + debris * 31, debris * 5),
                 collision=False, material=MATERIALS.get("burnt"),

@@ -44,6 +44,11 @@ public:
     UFUNCTION(BlueprintPure) UEmberArmorComponent* GetArmorComponent() const { return Armor; }
     UFUNCTION(BlueprintPure) UEmberWeaponComponent* GetWeaponComponent() const { return Weapon; }
     UFUNCTION(BlueprintPure) int32 GetCurrentWeaponIndex() const { return CurrentWeaponIndex; }
+    /** Temporarily suspends the on-foot pawn while its controller drives a vehicle. */
+    void PrepareForVehicle(APawn* VehiclePawn);
+    /** Restores collision, animation and walking after a safe vehicle exit. */
+    void RestoreFromVehicle(const FVector& ExitLocation, const FRotator& ExitRotation);
+    UFUNCTION(BlueprintPure) bool HasDriveableVehicleUnderCrosshair() const;
     void WriteWeaponCheckpoint(FEmberCheckpointSnapshot& Snapshot) const;
     bool RestoreWeaponCheckpoint(const FEmberCheckpointSnapshot& Snapshot);
 protected:

@@ -6,9 +6,8 @@ public class EmberGameplay : ModuleRules
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
         PublicDependencyModuleNames.AddRange(new[] {
-            "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput",
-            "GameplayTags", "Niagara", "EmberCore"
+            "Core", "CoreUObject", "Engine", "AudioExtensions", "InputCore", "EnhancedInput",
+            "GameplayTags", "Niagara", "ChaosModularVehicleEngine", "EmberCore"
         });
     }
 }
-

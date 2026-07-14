@@ -3,6 +3,8 @@
 #include "EmberArmorComponent.h"
 #include "EmberCharacter.h"
 #include "EmberHealthComponent.h"
+#include "EmberPlayerController.h"
+#include "EmberVehicleSeatComponent.h"
 #include "EmberWeaponComponent.h"
 #include "Engine/Canvas.h"
 #include "GameFramework/PlayerController.h"
@@ -28,7 +30,10 @@ void AEmberHUD::DrawHUD()
     const float Scale = FMath::Max(0.65f, FMath::Min(Canvas->ClipX / 1920.0f, Canvas->ClipY / 1080.0f));
     const FVector2D Center(Canvas->ClipX * 0.5f, Canvas->ClipY * 0.5f);
     APlayerController* PC = GetOwningPlayerController();
+    const AEmberPlayerController* EmberPC = Cast<AEmberPlayerController>(PC);
+    const UEmberVehicleSeatComponent* DrivingSeat = EmberPC ? EmberPC->GetVehicleSeatComponent() : nullptr;
     const AEmberCharacter* Character = PC ? Cast<AEmberCharacter>(PC->GetPawn()) : nullptr;
+    if (!Character && DrivingSeat) Character = DrivingSeat->GetDriverCharacter();
     if (!Character) return;
 
     const UEmberHealthComponent* Health = Character->GetHealthComponent();
@@ -68,6 +73,54 @@ void AEmberHUD::DrawHUD()
         if (!Enemy) continue;
         const UEmberHealthComponent* EnemyHealth = Enemy->FindComponentByClass<UEmberHealthComponent>();
         if (!EnemyHealth || !EnemyHealth->IsDead()) ++LivingEnemies;
+    }
+
+    if (DrivingSeat && PC && PC->GetPawn())
+    {
+        const FVector VehicleLocation = PC->GetPawn()->GetActorLocation();
+        FString Objective = TEXT("DRIVE TO THE WAREHOUSE APPROACH");
+        FString Phase = TEXT("VEHICLE TRANSIT");
+        if (VehicleLocation.X < -43000.0f) Objective = TEXT("DRIVE OUT FROM INSERTION");
+        else if (VehicleLocation.X < -22000.0f) Objective = TEXT("BREAK THROUGH THE FIRST PATROL");
+        else if (VehicleLocation.X < 9000.0f) Objective = TEXT("CROSS THE WAREHOUSE DISTRICT");
+        else if (VehicleLocation.X < 28000.0f) Objective = TEXT("REACH THE CONTAINER APPROACH");
+        else { Objective = TEXT("SECURE THE WATERFRONT"); Phase = TEXT("FINAL VEHICLE APPROACH"); }
+
+        const float LeftX = 34.0f * Scale;
+        const float TopY = 32.0f * Scale;
+        const float LeftW = 360.0f * Scale;
+        const float Speed = DrivingSeat->GetSpeedKPH();
+        PanelBox(LeftX, TopY, LeftW, 150.0f * Scale);
+        DrawText(TEXT("EMBER // VEHICLE-01"), Cyan, LeftX + 18.0f * Scale,
+            TopY + 12.0f * Scale, nullptr, 0.9f * Scale, false);
+        DrawText(FString::Printf(TEXT("%03.0f"), Speed), FLinearColor::White,
+            LeftX + 18.0f * Scale, TopY + 46.0f * Scale, nullptr, 1.8f * Scale, false);
+        DrawText(TEXT("KM/H"), Muted, LeftX + 108.0f * Scale,
+            TopY + 63.0f * Scale, nullptr, 0.72f * Scale, false);
+        Bar(LeftX + 18.0f * Scale, TopY + 98.0f * Scale, 318.0f * Scale,
+            10.0f * Scale, FMath::Clamp(Speed / 160.0f, 0.0f, 1.0f), Cyan);
+        DrawText(DrivingSeat->GetThrottleInput() < -0.01f ? TEXT("REVERSE")
+            : (DrivingSeat->IsHandbrakeApplied() ? TEXT("HANDBRAKE") : TEXT("DRIVE")),
+            Orange, LeftX + 18.0f * Scale, TopY + 119.0f * Scale, nullptr, 0.72f * Scale, false);
+
+        const float MissionW = 430.0f * Scale;
+        const float MissionX = Canvas->ClipX - MissionW - 34.0f * Scale;
+        PanelBox(MissionX, TopY, MissionW, 92.0f * Scale);
+        DrawText(Phase, Orange, MissionX + 18.0f * Scale, TopY + 12.0f * Scale,
+            nullptr, 0.83f * Scale, false);
+        DrawText(Objective, FLinearColor::White, MissionX + 18.0f * Scale,
+            TopY + 47.0f * Scale, nullptr, 0.78f * Scale, false);
+
+        const FString DriveControls = TEXT("W / RT  ACCELERATE    S / LT  BRAKE + REVERSE    A/D / LEFT STICK  STEER\nSPACE / A  HANDBRAKE    MOUSE / RIGHT STICK  CAMERA    E/F / Y  EXIT VEHICLE");
+        const float ControlsW = 800.0f * Scale;
+        const float ControlsX = Center.X - ControlsW * 0.5f;
+        PanelBox(ControlsX, Canvas->ClipY - 112.0f * Scale, ControlsW, 78.0f * Scale);
+        DrawText(DriveControls, FLinearColor::White, ControlsX + 20.0f * Scale,
+            Canvas->ClipY - 96.0f * Scale, nullptr, 0.62f * Scale, false);
+        DrawText(FString::Printf(TEXT("HOSTILES LEFT  %02d"), LivingEnemies),
+            LivingEnemies > 0 ? Orange : Cyan, LeftX, TopY + 168.0f * Scale,
+            nullptr, 0.9f * Scale, false);
+        return;
     }
 
     // Enemy health is only displayed when the enemy is in the player's view.
@@ -213,6 +266,16 @@ void AEmberHUD::DrawHUD()
 
     DrawText(TEXT("WASD MOVE  •  RMB AIM  •  LMB FIRE  •  R RELOAD  •  Q SHOULDER  •  V MELEE  •  E/F USE  •  WHEEL WEAPON  •  TAB INTEL  •  H HELP"),
         Muted, 34.0f * Scale, Canvas->ClipY - 26.0f * Scale, nullptr, 0.53f * Scale, false);
+
+    if (Character->HasDriveableVehicleUnderCrosshair())
+    {
+        const float PromptW = 310.0f * Scale;
+        DrawRect(Panel, Center.X - PromptW * 0.5f, Center.Y + 118.0f * Scale,
+            PromptW, 42.0f * Scale);
+        DrawText(TEXT("E / F / Y   ENTER VEHICLE"), Cyan,
+            Center.X - 116.0f * Scale, Center.Y + 130.0f * Scale,
+            nullptr, 0.72f * Scale, false);
+    }
 
     const float DamageAlpha = Character->GetDamageFeedbackAlpha();
     if (DamageAlpha > 0.01f)

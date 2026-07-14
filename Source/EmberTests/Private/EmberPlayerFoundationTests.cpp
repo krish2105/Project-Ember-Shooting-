@@ -2,9 +2,12 @@
 #include "EmberCharacter.h"
 #include "EmberGameMode.h"
 #include "EmberPlayerController.h"
+#include "EmberVehicleSeatComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/InputSettings.h"
 #include "InputCoreTypes.h"
+#include "Components/ActorComponent.h"
 #include "Components/StaticMeshComponent.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEmberPlayerWalkingFoundationTest,
@@ -103,5 +106,53 @@ bool FEmberPlayerWalkingFoundationTest::RunTest(const FString& Parameters)
         MutableCharacter->GetDefaultSubobjectByName(TEXT("ImpactFeedbackLight")));
     TestNotNull(TEXT("A reusable gunshot audio component exists"),
         MutableCharacter->GetDefaultSubobjectByName(TEXT("GunshotAudio")));
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEmberVehicleAccessContractTest,
+    "ProjectEmber.Vehicle.AccessAndSimulationContract",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FEmberVehicleAccessContractTest::RunTest(const FString& Parameters)
+{
+    const AEmberPlayerController* Controller = GetDefault<AEmberPlayerController>();
+    TestNotNull(TEXT("Player controller exposes vehicle entry"),
+        Controller->FindFunction(TEXT("EnterVehicle")));
+    TestNotNull(TEXT("Player controller exposes vehicle exit"),
+        Controller->FindFunction(TEXT("ExitVehicle")));
+    TestNotNull(TEXT("Vehicle seat component exposes a visible driver contract"),
+        UEmberVehicleSeatComponent::StaticClass()->FindFunctionByName(TEXT("GetDriverCharacter")));
+
+    UClass* VehicleClass = LoadClass<APawn>(nullptr,
+        TEXT("/ChaosModularVehicleExamples/Vehicles/ModularVehicle/SportsCar/"
+             "BP_ModularVehicleSimplifiedSkeletalSetup.BP_ModularVehicleSimplifiedSkeletalSetup_C"));
+    TestNotNull(TEXT("Licensed modular sports-car pawn is loadable"), VehicleClass);
+    if (VehicleClass)
+    {
+        const APawn* VehicleCDO = Cast<APawn>(VehicleClass->GetDefaultObject());
+        TestNotNull(TEXT("Sports-car class has a pawn default object"), VehicleCDO);
+        bool bHasVehicleSimulation = false;
+        if (VehicleCDO)
+        {
+            TArray<UActorComponent*> Components;
+            VehicleCDO->GetComponents(Components);
+            for (const UActorComponent* Component : Components)
+            {
+                if (!Component) continue;
+                const FString ClassName = Component->GetClass()->GetName();
+                bHasVehicleSimulation |= ClassName.Contains(TEXT("ModularVehicle"));
+            }
+        }
+        TestTrue(TEXT("Sports car owns a Chaos modular vehicle simulation component"), bHasVehicleSimulation);
+    }
+
+    const UInputSettings* InputSettings = GetDefault<UInputSettings>();
+    TArray<FInputActionKeyMapping> JumpMappings;
+    InputSettings->GetActionMappingByName(TEXT("Jump"), JumpMappings);
+    TestTrue(TEXT("Space is available as the vehicle handbrake while driving"),
+        JumpMappings.ContainsByPredicate([](const FInputActionKeyMapping& Mapping)
+        {
+            return Mapping.Key == EKeys::SpaceBar;
+        }));
     return true;
 }
