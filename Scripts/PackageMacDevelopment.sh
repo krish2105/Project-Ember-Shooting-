@@ -11,7 +11,7 @@ mkdir -p "$TEMP_PROJECT"
 git -C "$PROJECT_ROOT" archive HEAD | tar -x -C "$TEMP_PROJECT"
 TEMP_PROJECT_FILE="$TEMP_PROJECT/ProjectEmber.uproject"
 "$UAT" BuildCookRun -project="$TEMP_PROJECT_FILE" -platform=Mac \
-  -clientconfig=Development -architecture=arm64 -build -cook -stage -pak -package -archive \
+  -clientconfig=Development -architecture=arm64 -build -cook -CookDir="$TEMP_PROJECT/Content/Ember" -stage -pak -package -archive \
   -stagingdirectory="$TEMP_ROOT/Stage" -archivedirectory="$TEMP_ROOT/Archive" -unattended -utf8output
 validate_and_archive_app "$TEMP_ROOT/Archive" "ProjectEmber-mac-arm64-Development"
 cp "$TEMP_ROOT/Archive"/*.txt "$TEMP_ROOT/Archive"/*.zip "$TEMP_ROOT/Archive"/*.sha256 "$OUT/"
