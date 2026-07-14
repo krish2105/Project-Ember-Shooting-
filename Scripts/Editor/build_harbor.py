@@ -213,12 +213,12 @@ def configure_character_blueprint():
     cdo.set_editor_property(
         "weapon_presentation_transforms",
         [
-            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 180.0, 0.0), scale=unreal.Vector(1.18, 1.18, 1.18)),
-            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 180.0, 0.0), scale=unreal.Vector(1.08, 1.14, 1.14)),
-            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 180.0, 0.0), scale=unreal.Vector(1.14, 1.3, 1.22)),
-            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 180.0, 0.0), scale=unreal.Vector(1.22, 1.1, 1.1)),
-            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 180.0, 0.0), scale=unreal.Vector(1.2, 1.22, 1.18)),
-            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 180.0, 0.0), scale=unreal.Vector(1.08, 1.08, 1.08)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 0.0, 0.0), scale=unreal.Vector(1.0, 1.0, 1.0)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 0.0, 0.0), scale=unreal.Vector(1.0, 1.0, 1.0)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 0.0, 0.0), scale=unreal.Vector(1.0, 1.0, 1.0)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 0.0, 0.0), scale=unreal.Vector(1.0, 1.0, 1.0)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 0.0, 0.0), scale=unreal.Vector(1.0, 1.0, 1.0)),
+            unreal.Transform(location=unreal.Vector(0.0, 0.0, 0.0), rotation=unreal.Rotator(0.0, 0.0, 0.0), scale=unreal.Vector(1.0, 1.0, 1.0)),
         ],
     )
     unreal.BlueprintEditorLibrary.compile_blueprint(blueprint)
@@ -286,6 +286,27 @@ def spawn_mesh(mesh, label, location, scale, rotation=None, collision=True, mate
     # blockout resident. Without this, a packaged World Partition game can
     # spawn the pawn before the insertion cell (and its collision) streams in,
     # causing the player to fall forever through an otherwise valid harbor.
+    persistent(actor)
+    actor.set_actor_scale3d(scale)
+    return actor
+
+
+def spawn_skeletal_set_dressing(mesh, label, location, scale, rotation=None, collision=True):
+    """Place an approved, fully authored skeletal asset as inert set dressing."""
+    rotation = rotation or unreal.Rotator(0.0, 0.0, 0.0)
+    actor = ACTOR_SUBSYSTEM.spawn_actor_from_class(
+        unreal.SkeletalMeshActor, location, rotation, transient=False
+    )
+    if not actor:
+        raise RuntimeError(f"Unable to spawn {label}")
+    component = actor.get_editor_property("skeletal_mesh_component")
+    component.set_skeletal_mesh_asset(mesh)
+    component.set_simulate_physics(False)
+    component.set_collision_profile_name("BlockAll" if collision else "NoCollision")
+    component.set_collision_enabled(
+        unreal.CollisionEnabled.QUERY_AND_PHYSICS if collision else unreal.CollisionEnabled.NO_COLLISION
+    )
+    generated(actor, label)
     persistent(actor)
     actor.set_actor_scale3d(scale)
     return actor
@@ -407,23 +428,32 @@ def assemble_foreground_city(cube, cylinder, sphere, chamfer):
                 material=MATERIALS.get("rust"),
             )
 
+    # Epic's UE-only Chaos Modular Vehicle example provides a complete PBR car
+    # (body, glass, chassis and tires) that can legally ship in this Unreal
+    # project. It replaces the earlier cube/chamfer vehicle placeholders while
+    # remaining inert cover rather than implying a driveable vehicle system.
+    sports_car = unreal.load_asset(
+        "/ChaosModularVehicleExamples/Models/SportsCar/SKM_SportsCar"
+    )
+    if not sports_car:
+        raise RuntimeError("Chaos Modular Vehicle PBR sports car is unavailable")
+
     # Wrecks and rubble establish readable combat cover at human scale.
     wrecks = [(-34500, -2800, -8), (-18500, 3200, 12), (2500, -2400, -15), (14500, 3400, 5)]
     for index, (x, y, yaw) in enumerate(wrecks):
-        spawn_mesh(
-            chamfer, f"WreckedCar_Body_{index:02d}", unreal.Vector(x, y, 105),
-            unreal.Vector(22, 9, 2.2), unreal.Rotator(0, yaw, 0), collision=True,
+        spawn_skeletal_set_dressing(
+            sports_car, f"PBR_WreckedCar_{index:02d}", unreal.Vector(x, y, 58),
+            unreal.Vector(1.0, 1.0, 1.0), unreal.Rotator(0, yaw, 0), collision=True,
         )
-        spawn_mesh(
-            cube, f"WreckedCar_Cabin_{index:02d}", unreal.Vector(x - 150, y, 260),
-            unreal.Vector(9, 7.5, 2.0), unreal.Rotator(0, yaw, 0), collision=False,
-            material=MATERIALS.get("window"),
-        )
-        for wheel in (-1, 1):
+        # Small authored debris clusters visually integrate the clean example
+        # car into the damaged harbor without overwriting its supplied PBR
+        # material slots.
+        for debris in range(3):
             spawn_mesh(
-                cylinder, f"WreckedCar_Wheel_{index:02d}_{wheel}",
-                unreal.Vector(x + wheel * 650, y - 760, 75),
-                unreal.Vector(2.6, 2.6, 1.8), unreal.Rotator(90, yaw, 0),
+                chamfer, f"WreckedCar_Debris_{index:02d}_{debris:02d}",
+                unreal.Vector(x - 180 + debris * 210, y + 235, 42 + debris * 9),
+                unreal.Vector(1.8 + debris * 0.4, 1.2, 0.55),
+                unreal.Rotator(debris * 9, yaw + debris * 31, debris * 5),
                 collision=False, material=MATERIALS.get("burnt"),
             )
 

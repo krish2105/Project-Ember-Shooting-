@@ -75,8 +75,8 @@ AEmberEnemyCharacter::AEmberEnemyCharacter()
     WeaponVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EnemyWeaponVisual"));
     WeaponVisual->SetupAttachment(GetMesh(), TEXT("HandGrip_R"));
     WeaponVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    WeaponVisual->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
-    WeaponVisual->SetRelativeScale3D(FVector(1.08f));
+    WeaponVisual->SetRelativeRotation(FRotator::ZeroRotator);
+    WeaponVisual->SetRelativeScale3D(FVector::OneVector);
     if (RifleMesh.Succeeded()) WeaponVisual->SetStaticMesh(RifleMesh.Object);
 
     MuzzleFlashLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("EnemyMuzzleFlash"));
@@ -222,22 +222,27 @@ void AEmberEnemyCharacter::InitializeGunshotAudio()
 {
     if (!GunshotAudio || GunshotWave) return;
     GunshotWave = NewObject<USoundWaveProcedural>(this, TEXT("EnemyRuntimeGunshot"));
-    GunshotWave->SetSampleRate(22050);
+    constexpr float SampleRate = 44100.0f;
+    GunshotWave->SetSampleRate(static_cast<int32>(SampleRate));
     GunshotWave->NumChannels = 1;
-    GunshotWave->Duration = 0.1f;
+    GunshotWave->Duration = 0.28f;
     GunshotWave->SoundGroup = SOUNDGROUP_Effects;
-    constexpr int32 SampleCount = 2205;
+    constexpr int32 SampleCount = 12348;
     GunshotPCM.SetNumUninitialized(SampleCount * sizeof(int16));
     int16* Samples = reinterpret_cast<int16*>(GunshotPCM.GetData());
     FRandomStream Noise(GetUniqueID());
+    float FilteredNoise = 0.0f;
     for (int32 Index = 0; Index < SampleCount; ++Index)
     {
-        const float T = static_cast<float>(Index) / 22050.0f;
-        const float Envelope = FMath::Exp(-T * 39.0f);
-        const float Crack = Noise.FRandRange(-1.0f, 1.0f);
-        const float Report = FMath::Sin(2.0f * PI * 118.0f * T);
+        const float T = static_cast<float>(Index) / SampleRate;
+        const float White = Noise.FRandRange(-1.0f, 1.0f);
+        FilteredNoise = FMath::Lerp(FilteredNoise, White, 0.2f);
+        const float Crack = White * FMath::Exp(-T * 115.0f);
+        const float Report = FMath::Sin(2.0f * PI * (132.0f - T * 65.0f) * T)
+            * FMath::Exp(-T * 22.0f);
+        const float Tail = FilteredNoise * FMath::Exp(-T * 10.0f);
         Samples[Index] = static_cast<int16>(
-            FMath::Clamp((Crack * 0.8f + Report * 0.2f) * Envelope, -1.0f, 1.0f) * 22000.0f);
+            FMath::Clamp(Crack * 0.7f + Report * 0.32f + Tail * 0.16f, -1.0f, 1.0f) * 23000.0f);
     }
     GunshotAudio->SetSound(GunshotWave);
 }

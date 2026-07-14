@@ -73,6 +73,8 @@ protected:
     void MoveRight(float Value);
     void Turn(float Value);
     void LookUp(float Value);
+    void StartJump();
+    void StopJump();
     void StartSprint();
     void StopSprint();
     void ToggleCrouch();
@@ -117,6 +119,7 @@ protected:
     UPROPERTY(VisibleInstanceOnly, Category="Camera") bool bRightShoulder = true;
     UPROPERTY(EditDefaultsOnly, Category="Movement") float JogSpeed = 500.0f;
     UPROPERTY(EditDefaultsOnly, Category="Movement") float SprintSpeed = 750.0f;
+    UPROPERTY(EditDefaultsOnly, Category="Weapon|Recoil", meta=(ClampMin="1.0")) float RecoilRecoverySpeed = 10.0f;
     FTimerHandle AutomaticFireTimer;
     FTimerHandle MuzzleFlashTimer;
     FTimerHandle ShotTracerTimer;
@@ -136,4 +139,6 @@ protected:
     int32 CurrentWeaponIndex = INDEX_NONE;
     FTransform ActiveWeaponPresentationTransform = FTransform::Identity;
     float WeaponVisualRecoil = 0.0f;
+    float RecoveringPitchRecoil = 0.0f;
+    float RecoveringYawRecoil = 0.0f;
 };

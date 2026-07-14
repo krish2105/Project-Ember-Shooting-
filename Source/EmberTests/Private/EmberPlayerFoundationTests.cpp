@@ -18,7 +18,9 @@ bool FEmberPlayerWalkingFoundationTest::RunTest(const FString& Parameters)
     TestNotNull(TEXT("Character owns a movement component"), Movement);
     if (Movement)
     {
-        TestEqual(TEXT("Normal gravity is enabled"), Movement->GravityScale, 1.0f);
+        TestEqual(TEXT("Human-weight gravity is enabled"), Movement->GravityScale, 1.35f);
+        TestEqual(TEXT("Jump impulse remains compact"), Movement->JumpZVelocity, 520.0f);
+        TestEqual(TEXT("Air control remains tactical"), Movement->AirControl, 0.28f);
         TestFalse(TEXT("Player is not constrained to a fake ground plane"), Movement->bConstrainToPlane);
         TestTrue(TEXT("Walking remains the default land movement mode"),
             Movement->DefaultLandMovementMode == MOVE_Walking);
@@ -83,8 +85,8 @@ bool FEmberPlayerWalkingFoundationTest::RunTest(const FString& Parameters)
             WeaponVisual->GetAttachParent() == MutableCharacter->GetMesh());
         TestEqual(TEXT("Weapon uses the Shooter Variant grip socket"),
             WeaponVisual->GetAttachSocketName(), FName(TEXT("HandGrip_R")));
-        TestTrue(TEXT("Rifle local Y axis is reversed into character-forward"),
-            FMath::IsNearlyEqual(FMath::Abs(WeaponVisual->GetRelativeRotation().Yaw), 180.0f, 0.1f));
+        TestTrue(TEXT("Rifle snaps to the authored grip socket basis"),
+            WeaponVisual->GetRelativeRotation().IsNearlyZero(0.1f));
     }
     const UStaticMeshComponent* TracerVisual = Cast<UStaticMeshComponent>(
         MutableCharacter->GetDefaultSubobjectByName(TEXT("WeaponBarrelVisual")));

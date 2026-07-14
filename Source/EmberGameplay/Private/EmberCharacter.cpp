@@ -52,7 +52,12 @@ AEmberCharacter::AEmberCharacter()
     GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
     bUseControllerRotationYaw = false;
     GetCharacterMovement()->bOrientRotationToMovement = true;
-    GetCharacterMovement()->GravityScale = 1.0f;
+    // A compact, readable human jump rather than the floaty template arc.
+    GetCharacterMovement()->GravityScale = 1.35f;
+    GetCharacterMovement()->JumpZVelocity = 520.0f;
+    GetCharacterMovement()->AirControl = 0.28f;
+    GetCharacterMovement()->FallingLateralFriction = 0.15f;
+    GetCharacterMovement()->BrakingDecelerationFalling = 180.0f;
     GetCharacterMovement()->MaxWalkSpeed = JogSpeed;
     GetCharacterMovement()->BrakingDecelerationWalking = 1600.0f;
     GetCharacterMovement()->bUseSeparateBrakingFriction = true;
@@ -85,7 +90,7 @@ AEmberCharacter::AEmberCharacter()
     WeaponBodyVisual->SetupAttachment(GetMesh(), TEXT("HandGrip_R"));
     WeaponBodyVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     WeaponBodyVisual->SetRelativeLocation(FVector::ZeroVector);
-    WeaponBodyVisual->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
+    WeaponBodyVisual->SetRelativeRotation(FRotator::ZeroRotator);
     WeaponBodyVisual->SetRelativeScale3D(FVector::OneVector);
 
     // A hidden cube is retained only as a lightweight transient tracer mesh.
@@ -110,9 +115,8 @@ AEmberCharacter::AEmberCharacter()
     }
     MuzzleFlashLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("MuzzleFlashLight"));
     MuzzleFlashLight->SetupAttachment(WeaponBodyVisual);
-    // The template rifle is authored lengthwise on local +Y. The grip socket
-    // rotates that axis into character-forward, so the muzzle belongs at the
-    // positive-Y end of the mesh rather than on the old primitive's X axis.
+    // HandGrip_R supplies the authored weapon-facing basis. The presentation
+    // mesh therefore snaps to the socket without an extra 180-degree reversal.
     MuzzleFlashLight->SetRelativeLocation(FVector(0.0f, 58.0f, 7.0f));
     MuzzleFlashLight->SetAttenuationRadius(450.0f);
     MuzzleFlashLight->SetLightColor(FLinearColor(1.0f, 0.35f, 0.04f));
@@ -127,6 +131,8 @@ AEmberCharacter::AEmberCharacter()
     GunshotAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("GunshotAudio"));
     GunshotAudio->SetupAttachment(RootComponent);
     GunshotAudio->bAutoActivate = false;
+    GunshotAudio->bAllowSpatialization = false;
+    GunshotAudio->SetVolumeMultiplier(0.82f);
 }
 
 void AEmberCharacter::BeginPlay()
@@ -137,7 +143,11 @@ void AEmberCharacter::BeginPlay()
     GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
     UCharacterMovementComponent* Movement = GetCharacterMovement();
     Movement->MaxWalkSpeed = JogSpeed;
-    Movement->GravityScale = 1.0f;
+    Movement->GravityScale = 1.35f;
+    Movement->JumpZVelocity = 520.0f;
+    Movement->AirControl = 0.28f;
+    Movement->FallingLateralFriction = 0.15f;
+    Movement->BrakingDecelerationFalling = 180.0f;
     Movement->SetPlaneConstraintEnabled(false);
     Movement->SetMovementMode(MOVE_Walking);
     InitializeStarterWeapon();
@@ -172,18 +182,28 @@ void AEmberCharacter::Tick(float DeltaSeconds)
     FollowCamera->SetFieldOfView(FMath::FInterpTo(
         FollowCamera->FieldOfView, bAiming ? 70.0f : 86.0f, DeltaSeconds, CameraBlendSpeed));
 
+    // Return the camera smoothly after each impulse. Applying only kick and
+    // never recovery made automatic fire permanently walk the view upward.
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        const float NewPitch = FMath::FInterpTo(RecoveringPitchRecoil, 0.0f, DeltaSeconds, RecoilRecoverySpeed);
+        const float NewYaw = FMath::FInterpTo(RecoveringYawRecoil, 0.0f, DeltaSeconds, RecoilRecoverySpeed);
+        PC->AddPitchInput(-(RecoveringPitchRecoil - NewPitch));
+        PC->AddYawInput(-(RecoveringYawRecoil - NewYaw));
+        RecoveringPitchRecoil = NewPitch;
+        RecoveringYawRecoil = NewYaw;
+    }
+
     WeaponVisualRecoil = FMath::FInterpTo(WeaponVisualRecoil, 0.0f, DeltaSeconds, 15.0f);
     if (WeaponBodyVisual)
     {
-        const float ReloadProgress = Weapon ? Weapon->GetReloadProgress() : 0.0f;
-        const float ReloadPose = FMath::Sin(ReloadProgress * PI);
         FVector Location = ActiveWeaponPresentationTransform.GetLocation();
         FRotator Rotation = ActiveWeaponPresentationTransform.Rotator();
-        Location.X -= WeaponVisualRecoil * 4.0f;
-        Rotation.Pitch += WeaponVisualRecoil * 2.5f;
-        Location.Z -= ReloadPose * 13.0f;
-        Rotation.Pitch -= ReloadPose * 12.0f;
-        Rotation.Roll += ReloadPose * 32.0f;
+        // Keep secondary motion subtle. Large component-space offsets detach
+        // the weapon from the authored two-hand montage and create the crossed
+        // shoulder pose visible in earlier builds.
+        Location.X -= WeaponVisualRecoil * 0.45f;
+        Rotation.Pitch += WeaponVisualRecoil * 0.35f;
         WeaponBodyVisual->SetRelativeLocationAndRotation(Location, Rotation);
     }
 }
@@ -195,8 +215,8 @@ void AEmberCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
     PlayerInputComponent->BindAxis(TEXT("MoveRight"), this, &AEmberCharacter::MoveRight);
     PlayerInputComponent->BindAxis(TEXT("Turn"), this, &AEmberCharacter::Turn);
     PlayerInputComponent->BindAxis(TEXT("LookUp"), this, &AEmberCharacter::LookUp);
-    PlayerInputComponent->BindAction(TEXT("Jump"), IE_Pressed, this, &ACharacter::Jump);
-    PlayerInputComponent->BindAction(TEXT("Jump"), IE_Released, this, &ACharacter::StopJumping);
+    PlayerInputComponent->BindAction(TEXT("Jump"), IE_Pressed, this, &AEmberCharacter::StartJump);
+    PlayerInputComponent->BindAction(TEXT("Jump"), IE_Released, this, &AEmberCharacter::StopJump);
     PlayerInputComponent->BindAction(TEXT("Aim"), IE_Pressed, this, &AEmberCharacter::AimStarted);
     PlayerInputComponent->BindAction(TEXT("Aim"), IE_Released, this, &AEmberCharacter::AimCompleted);
     PlayerInputComponent->BindAction(TEXT("Fire"), IE_Pressed, this, &AEmberCharacter::FireStarted);
@@ -256,6 +276,14 @@ void AEmberCharacter::LookUp(float Value)
         UE_LOG(LogEmberCombat, Log, TEXT("Player look input confirmed: pitch delta=%.4f"), Value);
     }
 }
+void AEmberCharacter::StartJump()
+{
+    if (!GetCharacterMovement() || !GetCharacterMovement()->IsMovingOnGround()) return;
+    if (bIsCrouched) UnCrouch();
+    StopSprint();
+    Jump();
+}
+void AEmberCharacter::StopJump() { StopJumping(); }
 void AEmberCharacter::StartSprint()
 {
     GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
@@ -469,9 +497,13 @@ void AEmberCharacter::PlayGunshotFeedback()
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
         const float AimMultiplier = bAiming ? 0.78f : 1.0f;
-        PC->AddPitchInput(-(Weapon ? Weapon->GetVerticalRecoil() : 0.65f) * 1.35f * AimMultiplier);
+        const float PitchKick = -(Weapon ? Weapon->GetVerticalRecoil() : 0.65f) * 1.35f * AimMultiplier;
         const float Horizontal = Weapon ? Weapon->GetHorizontalRecoil() : 0.18f;
-        PC->AddYawInput(FMath::FRandRange(-Horizontal, Horizontal) * 1.2f * AimMultiplier);
+        const float YawKick = FMath::FRandRange(-Horizontal, Horizontal) * 1.2f * AimMultiplier;
+        PC->AddPitchInput(PitchKick);
+        PC->AddYawInput(YawKick);
+        RecoveringPitchRecoil += PitchKick;
+        RecoveringYawRecoil += YawKick;
     }
     if (MuzzleFlashLight)
     {
@@ -494,22 +526,29 @@ void AEmberCharacter::InitializeGunshotAudio()
 {
     if (!GunshotAudio || GunshotWave) return;
     GunshotWave = NewObject<USoundWaveProcedural>(this, TEXT("RuntimeGunshotWave"));
-    GunshotWave->SetSampleRate(22050);
+    constexpr float SampleRate = 44100.0f;
+    GunshotWave->SetSampleRate(static_cast<int32>(SampleRate));
     GunshotWave->NumChannels = 1;
-    GunshotWave->Duration = 0.12f;
+    GunshotWave->Duration = 0.36f;
     GunshotWave->SoundGroup = SOUNDGROUP_Effects;
-    constexpr int32 SampleCount = 2646;
+    constexpr int32 SampleCount = 15876;
     GunshotPCM.SetNumUninitialized(SampleCount * sizeof(int16));
     int16* Samples = reinterpret_cast<int16*>(GunshotPCM.GetData());
     FRandomStream Noise(0xE4B3);
+    float FilteredNoise = 0.0f;
     for (int32 Index = 0; Index < SampleCount; ++Index)
     {
-        const float T = static_cast<float>(Index) / 22050.0f;
-        const float Envelope = FMath::Exp(-T * 34.0f);
-        const float Crack = Noise.FRandRange(-1.0f, 1.0f);
-        const float Boom = FMath::Sin(2.0f * PI * 92.0f * T);
+        const float T = static_cast<float>(Index) / SampleRate;
+        const float White = Noise.FRandRange(-1.0f, 1.0f);
+        FilteredNoise = FMath::Lerp(FilteredNoise, White, 0.18f);
+        const float Crack = White * FMath::Exp(-T * 120.0f);
+        const float Body = FMath::Sin(2.0f * PI * (118.0f - T * 72.0f) * T)
+            * FMath::Exp(-T * 20.0f);
+        const float Sub = FMath::Sin(2.0f * PI * 58.0f * T) * FMath::Exp(-T * 12.0f);
+        const float Tail = FilteredNoise * FMath::Exp(-T * 9.0f);
+        const float Mixed = Crack * 0.68f + Body * 0.34f + Sub * 0.22f + Tail * 0.18f;
         Samples[Index] = static_cast<int16>(
-            FMath::Clamp((Crack * 0.72f + Boom * 0.28f) * Envelope, -1.0f, 1.0f) * 28000.0f);
+            FMath::Clamp(Mixed, -1.0f, 1.0f) * 28000.0f);
     }
     GunshotAudio->SetSound(GunshotWave);
 }
