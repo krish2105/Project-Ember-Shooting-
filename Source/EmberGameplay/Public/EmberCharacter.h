@@ -13,12 +13,9 @@ class UEmberHealthComponent;
 class UEmberInteractionComponent;
 class UEmberInventoryComponent;
 class UEmberWeaponComponent;
-class UInputAction;
-class UInputMappingContext;
 class USpringArmComponent;
 class UStaticMeshComponent;
 class UPointLightComponent;
-struct FInputActionValue;
 
 UCLASS()
 class EMBERGAMEPLAY_API AEmberCharacter : public ACharacter, public IEmberDamageable
@@ -27,19 +24,16 @@ class EMBERGAMEPLAY_API AEmberCharacter : public ACharacter, public IEmberDamage
 public:
     AEmberCharacter();
     virtual void BeginPlay() override;
-    virtual void Tick(float DeltaSeconds) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
     virtual FEmberDamageResult ReceiveEmberDamage_Implementation(const FEmberDamageSpec& DamageSpec) override;
     UFUNCTION(BlueprintCallable) void SetAiming(bool bNewAiming);
     UFUNCTION(BlueprintCallable) void SwapShoulder();
     UFUNCTION(BlueprintPure) bool IsAiming() const { return bAiming; }
-    UFUNCTION(BlueprintPure) bool IsFiringInputHeld() const { return bDirectFireHeld || bAxisFireHeld; }
+    UFUNCTION(BlueprintPure) bool IsFiringInputHeld() const { return bFireInputHeld; }
     UFUNCTION(BlueprintPure) UEmberHealthComponent* GetHealthComponent() const { return Health; }
     UFUNCTION(BlueprintPure) UEmberArmorComponent* GetArmorComponent() const { return Armor; }
     UFUNCTION(BlueprintPure) UEmberWeaponComponent* GetWeaponComponent() const { return Weapon; }
 protected:
-    void Move(const FInputActionValue& Value);
-    void Look(const FInputActionValue& Value);
     void AimStarted();
     void AimCompleted();
     void FireStarted();
@@ -61,17 +55,6 @@ protected:
     void StopSprint();
     void ToggleCrouch();
     void InitializeStarterWeapon();
-    void ForceGameplayInput();
-    void AimAxis(float Value);
-    void FireAxis(float Value);
-    void ReloadAxis(float Value);
-    void Weapon1Axis(float Value);
-    void Weapon2Axis(float Value);
-    void Weapon3Axis(float Value);
-    void Weapon4Axis(float Value);
-    void Weapon5Axis(float Value);
-    void Weapon6Axis(float Value);
-    void HandleWeaponAxis(float Value, int32 Index);
     void PlayGunshotFeedback();
     void ResetMuzzleFlash();
     FEmberShotRequest BuildShotRequest() const;
@@ -88,14 +71,6 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UStaticMeshComponent> WeaponBarrelVisual;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon") TObjectPtr<UPointLightComponent> MuzzleFlashLight;
 
-    UPROPERTY(EditDefaultsOnly, Category="Input") TObjectPtr<UInputMappingContext> OnFootMapping;
-    UPROPERTY(EditDefaultsOnly, Category="Input") TObjectPtr<UInputAction> MoveAction;
-    UPROPERTY(EditDefaultsOnly, Category="Input") TObjectPtr<UInputAction> LookAction;
-    UPROPERTY(EditDefaultsOnly, Category="Input") TObjectPtr<UInputAction> AimAction;
-    UPROPERTY(EditDefaultsOnly, Category="Input") TObjectPtr<UInputAction> FireAction;
-    UPROPERTY(EditDefaultsOnly, Category="Input") TObjectPtr<UInputAction> ReloadAction;
-    UPROPERTY(EditDefaultsOnly, Category="Input") TObjectPtr<UInputAction> ShoulderSwapAction;
-
     UPROPERTY(EditDefaultsOnly, Category="Camera") float ExplorationArmLength = 350.0f;
     UPROPERTY(EditDefaultsOnly, Category="Camera") float AimArmLength = 260.0f;
     UPROPERTY(EditDefaultsOnly, Category="Camera") float ShoulderOffset = 65.0f;
@@ -105,14 +80,5 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category="Movement") float SprintSpeed = 750.0f;
     FTimerHandle AutomaticFireTimer;
     FTimerHandle MuzzleFlashTimer;
-    UPROPERTY(Transient) TObjectPtr<UAnimationAsset> IdleAnimation;
-    UPROPERTY(Transient) TObjectPtr<UAnimationAsset> WalkAnimation;
-    UPROPERTY(Transient) TObjectPtr<UAnimationAsset> JogAnimation;
-    UPROPERTY(Transient) TObjectPtr<UAnimationAsset> ActiveLocomotionAnimation;
-    bool bDirectFireHeld = false;
-    bool bDirectAimHeld = false;
-    bool bAxisFireHeld = false;
-    bool bAxisAimHeld = false;
-    bool bAxisReloadHeld = false;
-    bool bWeaponAxisHeld[6] = { false, false, false, false, false, false };
+    bool bFireInputHeld = false;
 };

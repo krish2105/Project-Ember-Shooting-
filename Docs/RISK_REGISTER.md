@@ -7,6 +7,10 @@
 | macOS 26/Xcode compatibility with UE 5.8 unknown | High | Run Turnkey VerifySdk and first native link before broad implementation |
 | No binary assets or maps | Blocker for playability | Generate only through a compiled Editor module/commandlet or documented Editor steps |
 | No approved art/audio library | High | Use tracked functional placeholders; license-review each Fab candidate |
+| Previous packaged player used flying/zero-gravity workaround | High | Replaced with normal walking foundation; require fresh packaged movement smoke test before M0 acceptance |
+| Duplicate input routes obscured failures and could double-fire | High | Consolidated to one action-binding path; keep automated mapping checks and physical device test records |
+| Imported Third Person Blueprint references missing template C++ module | Medium | Generator now assigns the mannequin and available Animation Blueprint directly |
+| AAA presentation requested without asset budget or approved content | Critical | Do not mislabel placeholders; obtain approved licensed/commissioned environment, weapon, character, animation and audio content |
 | 24 GB below Epic recommendation | Medium | Monitor DDC, shader compile, cook memory and free disk space |
 | Base-M2/M3-Pro hardware unavailable | High | Report M4 Pro measurements only; leave tier certification pending |
 | Unnotarized public build | High | Document Gatekeeper flow; never claim notarization |

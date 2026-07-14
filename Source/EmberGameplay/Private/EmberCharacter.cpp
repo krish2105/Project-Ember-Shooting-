@@ -1,5 +1,4 @@
 #include "EmberCharacter.h"
-#include "Animation/AnimationAsset.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -13,14 +12,9 @@
 #include "EmberWeaponDefinition.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StaticMesh.h"
-#include "EnhancedInputComponent.h"
-#include "EnhancedInputSubsystems.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
-#include "InputAction.h"
-#include "InputActionValue.h"
-#include "InputMappingContext.h"
 #include "InputCoreTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
@@ -29,10 +23,13 @@
 
 AEmberCharacter::AEmberCharacter()
 {
-    PrimaryActorTick.bCanEverTick = true;
-    AutoPossessPlayer = EAutoReceiveInput::Player0;
+    PrimaryActorTick.bCanEverTick = false;
     bUseControllerRotationYaw = false;
     GetCharacterMovement()->bOrientRotationToMovement = true;
+    GetCharacterMovement()->GravityScale = 1.0f;
+    GetCharacterMovement()->MaxWalkSpeed = JogSpeed;
+    GetCharacterMovement()->BrakingDecelerationWalking = 1600.0f;
+    GetCharacterMovement()->bUseSeparateBrakingFriction = true;
 
     CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
     CameraBoom->SetupAttachment(RootComponent);
@@ -81,135 +78,28 @@ AEmberCharacter::AEmberCharacter()
 void AEmberCharacter::BeginPlay()
 {
     Super::BeginPlay();
-    IdleAnimation = LoadObject<UAnimationAsset>(nullptr,
-        TEXT("/Game/Characters/Mannequins/Anims/Unarmed/MM_Idle.MM_Idle"));
-    WalkAnimation = LoadObject<UAnimationAsset>(nullptr,
-        TEXT("/Game/Characters/Mannequins/Anims/Unarmed/Walk/MF_Unarmed_Walk_Fwd.MF_Unarmed_Walk_Fwd"));
-    JogAnimation = LoadObject<UAnimationAsset>(nullptr,
-        TEXT("/Game/Characters/Mannequins/Anims/Unarmed/Jog/MF_Unarmed_Jog_Fwd.MF_Unarmed_Jog_Fwd"));
-    if (IdleAnimation)
-    {
-        GetMesh()->SetAnimationMode(EAnimationMode::AnimationSingleNode);
-        GetMesh()->SetAnimation(IdleAnimation);
-        GetMesh()->Play(true);
-        ActiveLocomotionAnimation = IdleAnimation;
-    }
     UCharacterMovementComponent* Movement = GetCharacterMovement();
     Movement->MaxWalkSpeed = JogSpeed;
-    Movement->MaxFlySpeed = JogSpeed;
-    // The generated World Partition blockout has shown inconsistent floor
-    // detection in packaged Mac builds. Constrain this ground-based vertical
-    // slice to its insertion elevation so the pawn remains controllable and
-    // the animation graph never enters its endless falling state.
-    Movement->GravityScale = 0.0f;
-    Movement->SetPlaneConstraintNormal(FVector::UpVector);
-    Movement->SetPlaneConstraintOrigin(FVector(0.0f, 0.0f, GetActorLocation().Z));
-    Movement->SetPlaneConstraintEnabled(true);
-    Movement->SetMovementMode(MOVE_Flying);
+    Movement->GravityScale = 1.0f;
+    Movement->SetPlaneConstraintEnabled(false);
+    Movement->SetMovementMode(MOVE_Walking);
     InitializeStarterWeapon();
-    GetWorldTimerManager().SetTimerForNextTick(this, &AEmberCharacter::ForceGameplayInput);
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
         PC->bShowMouseCursor = false;
         PC->SetInputMode(FInputModeGameOnly());
         PC->SetIgnoreLookInput(false);
         PC->SetIgnoreMoveInput(false);
-        if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
-        {
-            if (OnFootMapping) Subsystem->AddMappingContext(OnFootMapping, 0);
-        }
-    }
-}
-
-void AEmberCharacter::ForceGameplayInput()
-{
-    APlayerController* PC = Cast<APlayerController>(GetController());
-    if (!PC && GetWorld()) PC = GetWorld()->GetFirstPlayerController();
-    if (!PC) return;
-    if (PC->GetPawn() != this) PC->Possess(this);
-    EnableInput(PC);
-    PC->SetPause(false);
-    PC->bShowMouseCursor = false;
-    PC->SetInputMode(FInputModeGameOnly());
-    PC->SetIgnoreLookInput(false);
-    PC->SetIgnoreMoveInput(false);
-    PC->FlushPressedKeys();
-}
-
-void AEmberCharacter::Tick(float DeltaSeconds)
-{
-    Super::Tick(DeltaSeconds);
-    const float Speed = GetVelocity().Size2D();
-    UAnimationAsset* Desired = IdleAnimation;
-    if (Speed > 420.0f && JogAnimation) Desired = JogAnimation;
-    else if (Speed > 5.0f && WalkAnimation) Desired = WalkAnimation;
-    if (Desired && Desired != ActiveLocomotionAnimation)
-    {
-        GetMesh()->SetAnimation(Desired);
-        GetMesh()->Play(true);
-        ActiveLocomotionAnimation = Desired;
-    }
-
-    // Hardware-level fallback for packaged macOS builds using Common UI.
-    // Normal action mappings remain active; rate limiting prevents duplicate
-    // fire requests when both paths are delivered in the same frame.
-    if (APlayerController* PC = Cast<APlayerController>(GetController()))
-    {
-        const bool bAimHeld = PC->IsInputKeyDown(EKeys::RightMouseButton)
-            || PC->GetInputAnalogKeyState(EKeys::Gamepad_LeftTrigger) > 0.35f;
-        if (bAimHeld != bDirectAimHeld)
-        {
-            bAimHeld ? AimStarted() : AimCompleted();
-            bDirectAimHeld = bAimHeld;
-        }
-
-        const bool bFireHeld = PC->IsInputKeyDown(EKeys::LeftMouseButton)
-            || PC->GetInputAnalogKeyState(EKeys::Gamepad_RightTrigger) > 0.35f;
-        if (bFireHeld && !bDirectFireHeld) FireStarted();
-        else if (!bFireHeld && bDirectFireHeld) FireCompleted();
-        bDirectFireHeld = bFireHeld;
-
-        if (PC->WasInputKeyJustPressed(EKeys::R)
-            || PC->WasInputKeyJustPressed(EKeys::Gamepad_FaceButton_Left)) Reload();
-        if (PC->WasInputKeyJustPressed(EKeys::One)) SelectWeapon1();
-        if (PC->WasInputKeyJustPressed(EKeys::Two)) SelectWeapon2();
-        if (PC->WasInputKeyJustPressed(EKeys::Three)) SelectWeapon3();
-        if (PC->WasInputKeyJustPressed(EKeys::Four)) SelectWeapon4();
-        if (PC->WasInputKeyJustPressed(EKeys::Five)) SelectWeapon5();
-        if (PC->WasInputKeyJustPressed(EKeys::Six)) SelectWeapon6();
     }
 }
 
 void AEmberCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
     Super::SetupPlayerInputComponent(PlayerInputComponent);
-    if (UEnhancedInputComponent* Input = Cast<UEnhancedInputComponent>(PlayerInputComponent))
-    {
-        if (MoveAction) Input->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AEmberCharacter::Move);
-        if (LookAction) Input->BindAction(LookAction, ETriggerEvent::Triggered, this, &AEmberCharacter::Look);
-        if (AimAction)
-        {
-            Input->BindAction(AimAction, ETriggerEvent::Started, this, &AEmberCharacter::AimStarted);
-            Input->BindAction(AimAction, ETriggerEvent::Completed, this, &AEmberCharacter::AimCompleted);
-        }
-        if (FireAction) Input->BindAction(FireAction, ETriggerEvent::Started, this, &AEmberCharacter::FireStarted);
-        if (ReloadAction) Input->BindAction(ReloadAction, ETriggerEvent::Started, this, &AEmberCharacter::Reload);
-        if (ShoulderSwapAction) Input->BindAction(ShoulderSwapAction, ETriggerEvent::Started, this, &AEmberCharacter::SwapShoulder);
-    }
-
     PlayerInputComponent->BindAxis(TEXT("MoveForward"), this, &AEmberCharacter::MoveForward);
     PlayerInputComponent->BindAxis(TEXT("MoveRight"), this, &AEmberCharacter::MoveRight);
     PlayerInputComponent->BindAxis(TEXT("Turn"), this, &AEmberCharacter::Turn);
     PlayerInputComponent->BindAxis(TEXT("LookUp"), this, &AEmberCharacter::LookUp);
-    PlayerInputComponent->BindAxis(TEXT("AimAxis"), this, &AEmberCharacter::AimAxis);
-    PlayerInputComponent->BindAxis(TEXT("FireAxis"), this, &AEmberCharacter::FireAxis);
-    PlayerInputComponent->BindAxis(TEXT("ReloadAxis"), this, &AEmberCharacter::ReloadAxis);
-    PlayerInputComponent->BindAxis(TEXT("Weapon1Axis"), this, &AEmberCharacter::Weapon1Axis);
-    PlayerInputComponent->BindAxis(TEXT("Weapon2Axis"), this, &AEmberCharacter::Weapon2Axis);
-    PlayerInputComponent->BindAxis(TEXT("Weapon3Axis"), this, &AEmberCharacter::Weapon3Axis);
-    PlayerInputComponent->BindAxis(TEXT("Weapon4Axis"), this, &AEmberCharacter::Weapon4Axis);
-    PlayerInputComponent->BindAxis(TEXT("Weapon5Axis"), this, &AEmberCharacter::Weapon5Axis);
-    PlayerInputComponent->BindAxis(TEXT("Weapon6Axis"), this, &AEmberCharacter::Weapon6Axis);
     PlayerInputComponent->BindAction(TEXT("Jump"), IE_Pressed, this, &ACharacter::Jump);
     PlayerInputComponent->BindAction(TEXT("Jump"), IE_Released, this, &ACharacter::StopJumping);
     PlayerInputComponent->BindAction(TEXT("Aim"), IE_Pressed, this, &AEmberCharacter::AimStarted);
@@ -230,22 +120,6 @@ void AEmberCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
     PlayerInputComponent->BindAction(TEXT("Weapon6"), IE_Pressed, this, &AEmberCharacter::SelectWeapon6);
 }
 
-void AEmberCharacter::Move(const FInputActionValue& Value)
-{
-    const FVector2D Axis = Value.Get<FVector2D>();
-    const FRotator ControlRotation = GetControlRotation();
-    const FRotator YawRotation(0.0f, ControlRotation.Yaw, 0.0f);
-    AddMovementInput(FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X), Axis.Y);
-    AddMovementInput(FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y), Axis.X);
-}
-
-void AEmberCharacter::Look(const FInputActionValue& Value)
-{
-    const FVector2D Axis = Value.Get<FVector2D>();
-    AddControllerYawInput(Axis.X);
-    AddControllerPitchInput(Axis.Y);
-}
-
 void AEmberCharacter::MoveForward(float Value)
 {
     if (FMath::IsNearlyZero(Value)) return;
@@ -262,46 +136,13 @@ void AEmberCharacter::MoveRight(float Value)
 
 void AEmberCharacter::Turn(float Value) { AddControllerYawInput(Value); }
 void AEmberCharacter::LookUp(float Value) { AddControllerPitchInput(Value); }
-void AEmberCharacter::AimAxis(float Value)
-{
-    const bool bHeld = Value > 0.35f;
-    if (bHeld != bAxisAimHeld) bHeld ? AimStarted() : AimCompleted();
-    bAxisAimHeld = bHeld;
-}
-void AEmberCharacter::FireAxis(float Value)
-{
-    const bool bHeld = Value > 0.35f;
-    if (bHeld && !bAxisFireHeld) FireStarted();
-    else if (!bHeld && bAxisFireHeld) FireCompleted();
-    bAxisFireHeld = bHeld;
-}
-void AEmberCharacter::ReloadAxis(float Value)
-{
-    const bool bHeld = Value > 0.35f;
-    if (bHeld && !bAxisReloadHeld) Reload();
-    bAxisReloadHeld = bHeld;
-}
-void AEmberCharacter::HandleWeaponAxis(float Value, int32 Index)
-{
-    const bool bHeld = Value > 0.35f;
-    if (bHeld && !bWeaponAxisHeld[Index]) EquipWeaponIndex(Index);
-    bWeaponAxisHeld[Index] = bHeld;
-}
-void AEmberCharacter::Weapon1Axis(float Value) { HandleWeaponAxis(Value, 0); }
-void AEmberCharacter::Weapon2Axis(float Value) { HandleWeaponAxis(Value, 1); }
-void AEmberCharacter::Weapon3Axis(float Value) { HandleWeaponAxis(Value, 2); }
-void AEmberCharacter::Weapon4Axis(float Value) { HandleWeaponAxis(Value, 3); }
-void AEmberCharacter::Weapon5Axis(float Value) { HandleWeaponAxis(Value, 4); }
-void AEmberCharacter::Weapon6Axis(float Value) { HandleWeaponAxis(Value, 5); }
 void AEmberCharacter::StartSprint()
 {
     GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
-    GetCharacterMovement()->MaxFlySpeed = SprintSpeed;
 }
 void AEmberCharacter::StopSprint()
 {
     GetCharacterMovement()->MaxWalkSpeed = JogSpeed;
-    GetCharacterMovement()->MaxFlySpeed = JogSpeed;
 }
 void AEmberCharacter::ToggleCrouch() { bIsCrouched ? UnCrouch() : Crouch(); }
 
@@ -340,6 +181,7 @@ void AEmberCharacter::AimCompleted() { SetAiming(false); }
 void AEmberCharacter::FireStarted()
 {
     if (!Weapon) return;
+    bFireInputHeld = true;
     if (Weapon->RequestFire(BuildShotRequest())) PlayGunshotFeedback();
     if (Weapon->IsAutomatic())
         GetWorldTimerManager().SetTimer(AutomaticFireTimer, [this]() {
@@ -348,6 +190,7 @@ void AEmberCharacter::FireStarted()
 }
 void AEmberCharacter::FireCompleted()
 {
+    bFireInputHeld = false;
     GetWorldTimerManager().ClearTimer(AutomaticFireTimer);
     if (Weapon) Weapon->StopFire();
 }

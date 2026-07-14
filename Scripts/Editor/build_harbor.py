@@ -38,34 +38,15 @@ def configure_character_blueprint():
     generated = blueprint.generated_class()
     cdo = unreal.get_default_object(generated)
     mesh_component = cdo.get_editor_property("mesh")
-    template_class = unreal.load_class(
-        None,
-        "/Game/ThirdPerson/Blueprints/BP_ThirdPersonCharacter.BP_ThirdPersonCharacter_C",
-    )
-    template_mesh = None
-    if template_class:
-        template_cdo = unreal.get_default_object(template_class)
-        template_mesh = template_cdo.get_editor_property("mesh")
     mannequin = unreal.load_asset(
         "/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple"
     )
     anim_class = unreal.load_class(
         None, "/Game/Characters/Mannequins/Anims/Unarmed/ABP_Unarmed.ABP_Unarmed_C"
     )
-    if template_mesh and template_mesh.get_editor_property("skeletal_mesh_asset"):
-        mesh_component.set_skeletal_mesh_asset(
-            template_mesh.get_editor_property("skeletal_mesh_asset")
-        )
-    elif mannequin:
+    if mannequin:
         mesh_component.set_skeletal_mesh_asset(mannequin)
-    if template_mesh and template_mesh.get_editor_property("anim_class"):
-        mesh_component.set_editor_property(
-            "anim_class", template_mesh.get_editor_property("anim_class")
-        )
-        mesh_component.set_editor_property(
-            "animation_mode", unreal.AnimationMode.ANIMATION_BLUEPRINT
-        )
-    elif anim_class:
+    if anim_class:
         mesh_component.set_editor_property("anim_class", anim_class)
         mesh_component.set_editor_property(
             "animation_mode", unreal.AnimationMode.ANIMATION_BLUEPRINT
@@ -91,6 +72,12 @@ def configure_game_mode(character_class):
     blueprint = create_blueprint(GAMEMODE_NAME, BLUEPRINT_PATH, parent)
     cdo = unreal.get_default_object(blueprint.generated_class())
     cdo.set_editor_property("default_pawn_class", character_class)
+    player_controller_class = unreal.load_class(
+        None, "/Script/EmberGameplay.EmberPlayerController"
+    )
+    if not player_controller_class:
+        raise RuntimeError("AEmberPlayerController class is unavailable")
+    cdo.set_editor_property("player_controller_class", player_controller_class)
     unreal.BlueprintEditorLibrary.compile_blueprint(blueprint)
     unreal.EditorAssetLibrary.save_loaded_asset(blueprint)
     return blueprint.generated_class()

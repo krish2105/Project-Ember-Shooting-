@@ -6,7 +6,7 @@ public class EmberTests : ModuleRules
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
         PrivateDependencyModuleNames.AddRange(new[] {
-            "Core", "CoreUObject", "Engine", "EmberCore", "EmberGameplay", "EmberAI", "EmberMission", "EmberUI"
+            "Core", "CoreUObject", "Engine", "InputCore", "EmberCore", "EmberGameplay", "EmberAI", "EmberMission", "EmberUI"
         });
     }
 }
