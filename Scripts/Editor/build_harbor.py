@@ -130,7 +130,7 @@ def persistent(actor):
     return actor
 
 
-def spawn_mesh(mesh, label, location, scale, rotation=None):
+def spawn_mesh(mesh, label, location, scale, rotation=None, collision=True):
     rotation = rotation or unreal.Rotator(0.0, 0.0, 0.0)
     actor = ACTOR_SUBSYSTEM.spawn_actor_from_class(
         unreal.StaticMeshActor, location, rotation, transient=False
@@ -142,8 +142,10 @@ def spawn_mesh(mesh, label, location, scale, rotation=None):
     # Prototype assets are not guaranteed to retain a blocking collision
     # profile after unattended duplication/cooking. Set it explicitly so the
     # packaged pawn cannot fall through the harbor floor.
-    component.set_collision_profile_name("BlockAll")
-    component.set_collision_enabled(unreal.CollisionEnabled.QUERY_AND_PHYSICS)
+    component.set_collision_profile_name("BlockAll" if collision else "NoCollision")
+    component.set_collision_enabled(
+        unreal.CollisionEnabled.QUERY_AND_PHYSICS if collision else unreal.CollisionEnabled.NO_COLLISION
+    )
     if label in ("Harbor_Ground", "Insertion_Foundation", "Warehouse_Floor"):
         material = unreal.load_asset(
             "/Game/LevelPrototyping/Materials/MI_PrototypeGrid_Gray"
@@ -152,9 +154,13 @@ def spawn_mesh(mesh, label, location, scale, rotation=None):
         material = unreal.load_asset(
             "/Game/LevelPrototyping/Materials/MI_PrototypeGrid_TopDark"
         )
+    elif label.startswith("Neon_") or label.endswith("ExitMarker"):
+        material = unreal.load_asset(
+            "/Game/LevelPrototyping/Interactable/JumpPad/Assets/Materials/MI_GlowNT"
+        )
     else:
         material = unreal.load_asset(
-            "/Game/LevelPrototyping/Materials/MI_DefaultColorway"
+            "/Game/LevelPrototyping/Materials/MI_PrototypeGrid_TopDark"
         )
     if material:
         component.set_material(0, material)
@@ -192,9 +198,11 @@ def assemble_harbor(game_mode_class):
     # The LevelPrototyping cube rendered correctly but did not block the
     # packaged CharacterMovement capsule on this UE 5.8 Mac build.
     cube = unreal.load_asset("/Engine/BasicShapes/Cube.Cube")
+    cylinder = unreal.load_asset("/Engine/BasicShapes/Cylinder.Cylinder")
+    sphere = unreal.load_asset("/Engine/BasicShapes/Sphere.Sphere")
     plane = unreal.load_asset("/Game/LevelPrototyping/Meshes/SM_Plane")
     ramp = unreal.load_asset("/Game/LevelPrototyping/Meshes/SM_Ramp")
-    if not cube or not plane or not ramp:
+    if not cube or not cylinder or not sphere or not plane or not ramp:
         raise RuntimeError("Prototype mesh pack is incomplete")
 
     # One-kilometre district base and waterfront.
@@ -294,6 +302,63 @@ def assemble_harbor(game_mode_class):
     spawn_mesh(cube, "Extraction_Pad", unreal.Vector(43000, -38000, 30), unreal.Vector(90, 90, 0.6))
     spawn_mesh(cube, "Optional_Manifest_Office", unreal.Vector(36000, 36000, 350), unreal.Vector(65, 50, 7))
 
+    # Dense original industrial skyline and route dressing. These silhouettes
+    # create layered combat depth while keeping geometry deterministic and
+    # license-safe for the packaged vertical slice.
+    skyline = [
+        (-42000, 42000, 72, 48, 210), (-25000, 45500, 50, 38, 145),
+        (-5000, 44000, 64, 46, 250), (14000, 46000, 42, 34, 165),
+        (30000, 43000, 58, 42, 225), (44500, 30000, 46, 36, 180),
+        (46500, 9000, 34, 30, 135), (45000, -12000, 52, 38, 205),
+    ]
+    for index, (x, y, sx, sy, sz) in enumerate(skyline):
+        spawn_mesh(
+            cube, f"Skyline_Tower_{index:02d}", unreal.Vector(x, y, sz * 25.0),
+            unreal.Vector(sx, sy, sz), collision=False,
+        )
+        spawn_mesh(
+            cube, f"Neon_Skyline_{index:02d}",
+            unreal.Vector(x - sx * 38.0, y - sy * 48.0, sz * 28.0),
+            unreal.Vector(0.5, 0.35, max(10.0, sz * 0.58)), collision=False,
+        )
+
+    # Foreground barriers, pipe stacks and sparse wind-bent trees break up the
+    # old empty plane and make each firing lane readable at human scale.
+    for index in range(18):
+        x = -41000 + index * 4800
+        y = -32000 if index % 2 == 0 else 31000
+        spawn_mesh(
+            cube, f"Route_Barrier_{index:02d}", unreal.Vector(x, y, 110),
+            unreal.Vector(16, 5, 2.2), unreal.Rotator(0, 8 if index % 2 else -8, 0),
+        )
+        spawn_mesh(
+            cylinder, f"PipeStack_{index:02d}",
+            unreal.Vector(x + 900, y + (700 if y < 0 else -700), 95),
+            unreal.Vector(2.2, 2.2, 9.0), unreal.Rotator(90, 0, 0),
+        )
+    for index, (x, y) in enumerate([
+        (-38000, 27000), (-29000, -35000), (-18000, 36000), (-4000, -39000),
+        (9000, 35000), (20000, -36000), (31000, 33000), (39000, -27000),
+    ]):
+        spawn_mesh(
+            cylinder, f"Harbor_TreeTrunk_{index:02d}", unreal.Vector(x, y, 420),
+            unreal.Vector(1.5, 1.5, 8.0), collision=False,
+        )
+        spawn_mesh(
+            sphere, f"Harbor_Canopy_{index:02d}", unreal.Vector(x, y, 1050),
+            unreal.Vector(8.5, 8.5, 5.5), collision=False,
+        )
+
+    for index, location in enumerate([
+        unreal.Vector(-36000, 0, 1800), unreal.Vector(-12000, -12000, 1900),
+        unreal.Vector(12000, 12000, 2100), unreal.Vector(28000, -16000, 2100),
+        unreal.Vector(43000, -38000, 1900),
+    ]):
+        spawn_mesh(
+            cube, f"Neon_RouteBeacon_{index:02d}", location,
+            unreal.Vector(0.6, 0.6, 14.0), collision=False,
+        )
+
     # Create a persistent, explicit insertion spawn. The duplicated template map
     # may not retain its external PlayerStart when regenerated unattended.
     starts = unreal.GameplayStatics.get_all_actors_of_class(world, unreal.PlayerStart)
@@ -314,13 +379,15 @@ def assemble_harbor(game_mode_class):
     sun = ACTOR_SUBSYSTEM.spawn_actor_from_class(
         unreal.DirectionalLight,
         unreal.Vector(0, 0, 18000),
-        unreal.Rotator(-42, -28, 0),
+        unreal.Rotator(-12, -32, 0),
         transient=False,
     )
     if sun:
         generated(sun, "Harbor_Sun")
         persistent(sun)
-        sun.get_editor_property("directional_light_component").set_editor_property("intensity", 10.0)
+        sun_component = sun.get_editor_property("directional_light_component")
+        sun_component.set_editor_property("intensity", 2.4)
+        sun_component.set_editor_property("light_color", unreal.Color(105, 145, 255, 255))
 
     skylight = ACTOR_SUBSYSTEM.spawn_actor_from_class(
         unreal.SkyLight,
@@ -332,7 +399,7 @@ def assemble_harbor(game_mode_class):
         generated(skylight, "Harbor_Skylight")
         persistent(skylight)
         sky_component = skylight.get_editor_property("light_component")
-        sky_component.set_editor_property("intensity", 1.2)
+        sky_component.set_editor_property("intensity", 0.38)
         sky_component.set_editor_property("real_time_capture", True)
 
     atmosphere = ACTOR_SUBSYSTEM.spawn_actor_from_class(
@@ -354,7 +421,13 @@ def assemble_harbor(game_mode_class):
     if fog:
         generated(fog, "Harbor_Fog")
         persistent(fog)
-        fog.get_editor_property("component").set_editor_property("fog_density", 0.006)
+        fog_component = fog.get_editor_property("component")
+        fog_component.set_editor_property("fog_density", 0.012)
+        try:
+            fog_component.set_editor_property("volumetric_fog", True)
+            fog_component.set_editor_property("volumetric_fog_scattering_distribution", 0.75)
+        except Exception:
+            pass
 
     for index, location in enumerate([
         unreal.Vector(-36000, 0, 1800),
@@ -370,8 +443,33 @@ def assemble_harbor(game_mode_class):
             generated(work_light, f"Harbor_WorkLight_{index:02d}")
             persistent(work_light)
             work_component = work_light.get_editor_property("point_light_component")
-            work_component.set_editor_property("intensity", 18000.0)
-            work_component.set_editor_property("attenuation_radius", 18000.0)
+            work_component.set_editor_property("intensity", 26000.0)
+            work_component.set_editor_property("attenuation_radius", 15000.0)
+            work_component.set_editor_property(
+                "light_color",
+                unreal.Color(45, 185, 255, 255)
+                if index % 2 == 0 else unreal.Color(255, 105, 32, 255),
+            )
+
+    # Teal/orange pools lead the player across the authored combat route and
+    # keep the player and enemies separated from the moonlit skyline.
+    for index in range(14):
+        route_light = ACTOR_SUBSYSTEM.spawn_actor_from_class(
+            unreal.PointLight,
+            unreal.Vector(-42000 + index * 6500, -25000 + (index % 3) * 19000, 1450),
+            unreal.Rotator(0, 0, 0), transient=False,
+        )
+        if route_light:
+            generated(route_light, f"Harbor_RouteLight_{index:02d}")
+            persistent(route_light)
+            component = route_light.get_editor_property("point_light_component")
+            component.set_editor_property("intensity", 12500.0)
+            component.set_editor_property("attenuation_radius", 6500.0)
+            component.set_editor_property(
+                "light_color",
+                unreal.Color(35, 205, 255, 255)
+                if index % 3 else unreal.Color(255, 82, 24, 255),
+            )
 
     nav = ACTOR_SUBSYSTEM.spawn_actor_from_class(
         unreal.NavMeshBoundsVolume,

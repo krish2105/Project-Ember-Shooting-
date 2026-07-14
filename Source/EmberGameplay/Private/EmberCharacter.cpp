@@ -1,5 +1,8 @@
 #include "EmberCharacter.h"
 #include "Camera/CameraComponent.h"
+#include "Animation/AnimInstance.h"
+#include "Animation/AnimMontage.h"
+#include "Animation/AnimSequence.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
@@ -153,6 +156,20 @@ void AEmberCharacter::Tick(float DeltaSeconds)
     CameraBoom->SocketOffset = Offset;
     FollowCamera->SetFieldOfView(FMath::FInterpTo(
         FollowCamera->FieldOfView, bAiming ? 70.0f : 86.0f, DeltaSeconds, CameraBlendSpeed));
+
+    WeaponVisualRecoil = FMath::FInterpTo(WeaponVisualRecoil, 0.0f, DeltaSeconds, 15.0f);
+    if (WeaponBodyVisual)
+    {
+        const float ReloadProgress = Weapon ? Weapon->GetReloadProgress() : 0.0f;
+        const float ReloadPose = FMath::Sin(ReloadProgress * PI);
+        FVector Location = ActiveWeaponPresentationTransform.GetLocation();
+        FRotator Rotation = ActiveWeaponPresentationTransform.Rotator();
+        Location.X -= WeaponVisualRecoil * 7.0f;
+        Location.Z -= ReloadPose * 13.0f;
+        Rotation.Pitch -= ReloadPose * 12.0f;
+        Rotation.Roll += ReloadPose * 32.0f;
+        WeaponBodyVisual->SetRelativeLocationAndRotation(Location, Rotation);
+    }
 }
 
 void AEmberCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -234,6 +251,7 @@ void AEmberCharacter::AimCompleted()
 void AEmberCharacter::FireStarted()
 {
     if (!Weapon) return;
+    if (Weapon->IsReloading() && Weapon->GetMagazineAmmo() > 0) Weapon->CancelReload();
     bFireInputHeld = true;
     TryFire();
     if (Weapon->IsAutomatic())
@@ -250,6 +268,7 @@ void AEmberCharacter::FireCompleted()
 void AEmberCharacter::Reload()
 {
     const bool bStarted = Weapon && Weapon->BeginReload();
+    if (bStarted) PlayCurrentWeaponMontage(true);
     UE_LOG(LogEmberCombat, Log, TEXT("Player reload requested: %s"), bStarted ? TEXT("STARTED") : TEXT("REJECTED"));
 }
 
@@ -260,6 +279,8 @@ bool AEmberCharacter::TryFire()
     if (!Weapon->RequestFire(LastShotRequest)) return false;
     UE_LOG(LogEmberCombat, Log, TEXT("Player weapon fired; magazine=%d reserve=%d"),
         Weapon->GetMagazineAmmo(), Weapon->GetReserveAmmo());
+    WeaponVisualRecoil = 1.0f;
+    PlayCurrentWeaponMontage(false);
     PlayGunshotFeedback();
     return true;
 }
@@ -510,7 +531,44 @@ void AEmberCharacter::UpdateWeaponPresentation(int32 Index)
     WeaponBodyVisual->SetStaticMesh(DesiredMesh);
     const FTransform PresentationTransform = WeaponPresentationTransforms.IsValidIndex(Index)
         ? WeaponPresentationTransforms[Index] : FTransform::Identity;
-    WeaponBodyVisual->SetRelativeTransform(PresentationTransform);
+    ActiveWeaponPresentationTransform = PresentationTransform;
+    WeaponBodyVisual->SetRelativeTransform(ActiveWeaponPresentationTransform);
+
+    const TCHAR* AnimClassPath = Index == 5
+        ? TEXT("/Game/Variant_Shooter/Anims/ABP_TP_Pistol.ABP_TP_Pistol_C")
+        : TEXT("/Game/Variant_Shooter/Anims/ABP_TP_Rifle.ABP_TP_Rifle_C");
+    if (UClass* AnimClass = LoadClass<UAnimInstance>(nullptr, AnimClassPath))
+    {
+        GetMesh()->SetAnimInstanceClass(AnimClass);
+    }
+}
+
+void AEmberCharacter::PlayCurrentWeaponMontage(bool bReloadMontage)
+{
+    const UEmberWeaponDefinition* Definition = Weapon ? Weapon->GetDefinition() : nullptr;
+    if (!Definition || !GetMesh()) return;
+    UAnimMontage* Montage = bReloadMontage
+        ? Definition->ReloadMontage.LoadSynchronous()
+        : Definition->FireMontage.LoadSynchronous();
+    if (Montage)
+    {
+        if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+        {
+            AnimInstance->Montage_Play(Montage, 1.0f);
+        }
+        return;
+    }
+    UAnimSequence* Sequence = bReloadMontage
+        ? Definition->ReloadAnimation.LoadSynchronous()
+        : Definition->FireAnimation.LoadSynchronous();
+    if (Sequence)
+    {
+        if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+        {
+            AnimInstance->PlaySlotAnimationAsDynamicMontage(
+                Sequence, TEXT("DefaultSlot"), 0.08f, 0.12f, 1.0f, 1, -1.0f, 0.0f);
+        }
+    }
 }
 
 void AEmberCharacter::SwapShoulder()

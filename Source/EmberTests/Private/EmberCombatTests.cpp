@@ -54,5 +54,11 @@ bool FEmberWeaponStateRestoreTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("Restored automatic weapon keeps its fire mode"), Weapon->IsAutomatic());
     TestTrue(TEXT("Aim spread is tighter than hip spread"),
         Weapon->GetSpreadDegrees(true) < Weapon->GetSpreadDegrees(false));
+    TestTrue(TEXT("A partial magazine can enter a visible reload state"), Weapon->BeginReload());
+    TestTrue(TEXT("Reload state is exposed to animation and HUD"), Weapon->IsReloading());
+    TestEqual(TEXT("Reload begins at the started contract stage"),
+        Weapon->GetReloadStage(), EEmberReloadStage::Started);
+    TestTrue(TEXT("A tactical reload can be interrupted before insertion"), Weapon->CancelReload());
+    TestFalse(TEXT("Interrupted reload clears the visible state"), Weapon->IsReloading());
     return true;
 }

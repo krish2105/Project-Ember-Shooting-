@@ -26,3 +26,5 @@
 | Physical hit reactions can destabilize AI navigation and collision | High | A 0.12-second bounded skeletal flinch is active; reserve ragdoll for death and keep full physical-animation profiles behind later validation |
 | Indoor effects exceed Mac frame/audio budgets | High | Pool effects, cap decals/lights/voices, provide independent scalability fallbacks and profile the authored encounter |
 | Six weapon slots accidentally presented as six finished models | Critical | Runtime now supports six independent mesh entries; keep rifle/pistol stand-ins recorded until four additional approved models and all six animation sets pass the final-art gate |
+| Generated concept art mistaken for a shipped asset or guaranteed AAA target | Critical | Treat references as composition only; ship original code/Editor-generated content, disclose template stand-ins and verify the packaged result rather than claiming visual parity |
+| Night lighting hides traversal, targets or reticle state | High | Use bounded cyan/orange route pools, emissive beacons, live radar and hostile reticle; run a fresh Metal visibility and input smoke test before release |

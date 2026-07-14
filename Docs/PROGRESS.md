@@ -6,7 +6,7 @@
 - Detected: M4 Pro arm64, 24 GB RAM, macOS 26.5.2.
 - Toolchain: UE 5.8 at `~/Desktop/UE_5.8`; Xcode 26.6 and macOS SDK 26.5 accepted by Turnkey on 2026-07-14.
 - Editor build: `ProjectEmberEditor Mac Development` succeeded after the player foundation correction.
-- Tests: eight tests pass with no warnings or errors in `Saved/Automation/20260714T024604Z`, including walking, hold/toggle aim contracts, input mapping, bounded feedback components, damage direction and weapon-state assertions.
+- Tests: eight tests pass with no warnings or errors in `Saved/Automation/20260714T032907Z`, including walking, hold/toggle aim contracts, input mapping, bounded feedback components, damage direction, reload interruption and generated animation-reference assertions.
 - Content validation: completed with 0 errors on 2026-07-14.
 - Editor assets/maps: harbor map and Blueprint classes regenerated through Unreal Editor scripting. The generated GameMode explicitly selects `AEmberPlayerController` and the third-person pawn.
 - Player foundation correction: removed forced flying, zero gravity, planar movement, forced possession and duplicate combat-input polling. Normal walking gravity, a single action-binding path and packaged game-focus controller are active.
@@ -17,6 +17,7 @@
 - Packaged switching evidence: slot 1 fired to 29, slot 2 equipped/fired to 29, and slot 1 re-equipped at 29 before reload started. This proves that 1–6 selection does not refill a previously used slot.
 - Remaining M0 certification evidence: physical Xbox-layout and PlayStation-layout controller records.
 - Presentation correction (2026-07-14): the capsule-mounted primitive silhouette was removed. Epic's UE 5.8 Shooter Variant third-person rifle graph and modeled rifle/pistol resources are installed through an Editor script, the weapon follows Manny's `hand_r` bone, and a live Metal preview confirmed two-handed combat locomotion with a forward-oriented weapon. The camera now uses a tighter 310 cm exploration / 215 cm aim boom and 86/70 degree FOV pair.
+- Night-harbor presentation pass (2026-07-14): the generated mission now uses an original moonlit teal/orange lighting direction with volumetric fog, 8 skyline towers, facade strips, 14 route lights, five objective beacons, barriers, pipe stacks and sparse edge vegetation. The responsive HUD includes health, armor, ammo, phase/objective, living-hostile count, six-slot selection, timed reload feedback, hostile reticle, hit marker and player-relative radar.
 
 ## Remaining milestones
 
@@ -24,7 +25,8 @@
 
 - In progress. Six selectable weapon slots now preserve independent magazine/reserve state, preventing switch-to-refill ammunition duplication.
 - Weapon definitions drive reload duration, recoil and aim/hip spread. Six functional slots use licensed UE-only template rifle/pistol presentation, and the packaged input path is proven in the prior build.
-- Remaining: original final weapon art for all six slots, fire/reload montage synchronization, chambering edge cases, full surface routing and physical controller certification.
+- Shared licensed rifle/pistol fire and reload sequences are now data-driven and triggered through dynamic montages; visible recoil and a timed reload pose remain synchronized with authoritative ammunition state.
+- Remaining: original final weapon art and bespoke animation sets for all six slots, chambering edge cases, full surface routing and physical controller certification.
 
 ### M3–M4 — AI and Harbor Mission
 

@@ -39,6 +39,7 @@ public:
     UFUNCTION(BlueprintPure) UEmberHealthComponent* GetHealthComponent() const { return Health; }
     UFUNCTION(BlueprintPure) UEmberArmorComponent* GetArmorComponent() const { return Armor; }
     UFUNCTION(BlueprintPure) UEmberWeaponComponent* GetWeaponComponent() const { return Weapon; }
+    UFUNCTION(BlueprintPure) int32 GetCurrentWeaponIndex() const { return CurrentWeaponIndex; }
     void WriteWeaponCheckpoint(FEmberCheckpointSnapshot& Snapshot) const;
     bool RestoreWeaponCheckpoint(const FEmberCheckpointSnapshot& Snapshot);
 protected:
@@ -67,6 +68,7 @@ protected:
     void ToggleCrouch();
     void InitializeStarterWeapon();
     void PlayGunshotFeedback();
+    void PlayCurrentWeaponMontage(bool bReloadMontage);
     void InitializeGunshotAudio();
     void ResetMuzzleFlash();
     void ResetShotTracer();
@@ -116,4 +118,6 @@ protected:
     TArray<int32> SlotMagazineAmmo;
     TArray<int32> SlotReserveAmmo;
     int32 CurrentWeaponIndex = INDEX_NONE;
+    FTransform ActiveWeaponPresentationTransform = FTransform::Identity;
+    float WeaponVisualRecoil = 0.0f;
 };

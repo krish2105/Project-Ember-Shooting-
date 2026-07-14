@@ -6,7 +6,7 @@ Required categories include player/enemy characters, locomotion and combat anima
 
 Engine/template content and original functional placeholders may establish gameplay. Every external candidate requires individual license review in `Licenses/THIRD_PARTY_ASSETS.csv`. No external character, weapon, harbor environment, animation, VFX, music or sound library is currently approved or represented as finished.
 
-The current build uses Epic's UE 5.8 Shooter Variant third-person animation graph and UE-only rifle/pistol template meshes instead of the previous floating primitive silhouette. Reusable tracer/impact-light components and red hostile text remain functional placeholders. Original Project Ember weapon art for six distinct mission weapons, montage synchronization, Niagara effects and enemy art are still required by M6–M7.
+The current build uses Epic's UE 5.8 Shooter Variant third-person animation graph, UE-only rifle/pistol template meshes and their shared fire/reload sequences instead of the previous floating primitive silhouette. Reusable tracer/impact-light components and tactical enemy labels remain functional placeholders. Original Project Ember weapon art and bespoke montage coverage for six distinct mission weapons, Niagara effects and enemy art are still required by M6–M7.
 
 The requested supernatural-action tone is an art-direction reference only. No character, weapon, environment, name, story, audio or other proprietary asset from *Control* is included or planned for copying.
 
@@ -17,3 +17,5 @@ The new over-the-shoulder combat target additionally requires an original modula
 The generated stairwell geometry and per-slot weapon transforms are functional layout/presentation placeholders. They establish traversal dimensions and the six-mesh runtime contract, but they are not final environment or weapon art.
 
 The directional enemy flinch is a bounded code-owned gameplay reaction, not a substitute for authored hit-reaction montages, physical-animation profiles, wound materials or final death animation coverage.
+
+The night skyline, neon route dressing, fog, barriers, pipes and vegetation are original Editor-generated composition geometry using Epic template/engine materials. They provide a coherent playable presentation pass but are not a substitute for final modular harbor architecture, authored props, surface materials, LODs or HLODs.

@@ -35,6 +35,7 @@ bool UEmberWeaponComponent::InitializeWeaponState(
         }
     }
     ReloadStage = EEmberReloadStage::None;
+    ReloadDurationSeconds = 0.0f;
     OnAmmoChanged.Broadcast(MagazineAmmo, ReserveAmmo);
     return true;
 }
@@ -148,8 +149,10 @@ bool UEmberWeaponComponent::BeginReload()
     {
         const float ReloadSeconds = MagazineAmmo == 0
             ? Definition->EmptyReloadSeconds : Definition->TacticalReloadSeconds;
+        ReloadStartedAtSeconds = World->GetTimeSeconds();
+        ReloadDurationSeconds = FMath::Max(0.1f, ReloadSeconds);
         World->GetTimerManager().SetTimer(ReloadTimer, this,
-            &UEmberWeaponComponent::CompleteReload, FMath::Max(0.1f, ReloadSeconds), false);
+            &UEmberWeaponComponent::CompleteReload, ReloadDurationSeconds, false);
     }
     return true;
 }
@@ -165,6 +168,7 @@ bool UEmberWeaponComponent::CancelReload()
 {
     if (ReloadStage == EEmberReloadStage::None || ReloadStage == EEmberReloadStage::MagazineInserted) return false;
     ReloadStage = EEmberReloadStage::None;
+    ReloadDurationSeconds = 0.0f;
     if (UWorld* World = GetWorld()) World->GetTimerManager().ClearTimer(ReloadTimer);
     return true;
 }
@@ -176,5 +180,14 @@ void UEmberWeaponComponent::CompleteReload()
     MagazineAmmo += Loaded;
     ReserveAmmo -= Loaded;
     ReloadStage = EEmberReloadStage::None;
+    ReloadDurationSeconds = 0.0f;
     OnAmmoChanged.Broadcast(MagazineAmmo, ReserveAmmo);
+}
+
+float UEmberWeaponComponent::GetReloadProgress() const
+{
+    const UWorld* World = GetWorld();
+    if (!World || ReloadStage == EEmberReloadStage::None || ReloadDurationSeconds <= 0.0f) return 0.0f;
+    return FMath::Clamp(static_cast<float>((World->GetTimeSeconds() - ReloadStartedAtSeconds)
+        / ReloadDurationSeconds), 0.0f, 1.0f);
 }
