@@ -3,6 +3,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
+#include "Components/AudioComponent.h"
 #include "EmberArmorComponent.h"
 #include "EmberDamageReceiverComponent.h"
 #include "EmberHealthComponent.h"
@@ -40,7 +41,7 @@ namespace
 
 AEmberCharacter::AEmberCharacter()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = true;
     bUseControllerRotationYaw = false;
     GetCharacterMovement()->bOrientRotationToMovement = true;
     GetCharacterMovement()->GravityScale = 1.0f;
@@ -88,12 +89,32 @@ AEmberCharacter::AEmberCharacter()
     {
         WeaponBarrelVisual->SetStaticMesh(CubeMesh.Object);
     }
+    ShotTracerVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShotTracerVisual"));
+    ShotTracerVisual->SetupAttachment(RootComponent);
+    ShotTracerVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    ShotTracerVisual->SetCastShadow(false);
+    ShotTracerVisual->SetVisibility(false);
+    ShotTracerVisual->SetHiddenInGame(true);
+    if (CubeMesh.Succeeded())
+    {
+        ShotTracerVisual->SetStaticMesh(CubeMesh.Object);
+    }
     MuzzleFlashLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("MuzzleFlashLight"));
     MuzzleFlashLight->SetupAttachment(WeaponBodyVisual);
     MuzzleFlashLight->SetRelativeLocation(FVector(105.0f, 0.0f, 10.0f));
     MuzzleFlashLight->SetAttenuationRadius(450.0f);
     MuzzleFlashLight->SetLightColor(FLinearColor(1.0f, 0.35f, 0.04f));
     MuzzleFlashLight->SetIntensity(0.0f);
+
+    ImpactFeedbackLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("ImpactFeedbackLight"));
+    ImpactFeedbackLight->SetupAttachment(RootComponent);
+    ImpactFeedbackLight->SetAttenuationRadius(240.0f);
+    ImpactFeedbackLight->SetIntensity(0.0f);
+    ImpactFeedbackLight->SetVisibility(false);
+
+    GunshotAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("GunshotAudio"));
+    GunshotAudio->SetupAttachment(RootComponent);
+    GunshotAudio->bAutoActivate = false;
 }
 
 void AEmberCharacter::BeginPlay()
@@ -105,6 +126,7 @@ void AEmberCharacter::BeginPlay()
     Movement->SetPlaneConstraintEnabled(false);
     Movement->SetMovementMode(MOVE_Walking);
     InitializeStarterWeapon();
+    InitializeGunshotAudio();
     Weapon->OnShotResolved.AddDynamic(this, &AEmberCharacter::HandleShotResolved);
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
@@ -113,6 +135,24 @@ void AEmberCharacter::BeginPlay()
         PC->SetIgnoreLookInput(false);
         PC->SetIgnoreMoveInput(false);
     }
+}
+
+void AEmberCharacter::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+    if (!CameraBoom || !FollowCamera) return;
+
+    const float TargetArmLength = bAiming ? AimArmLength : ExplorationArmLength;
+    const float TargetHeight = bAiming ? 58.0f : 70.0f;
+    const float TargetShoulder = bRightShoulder ? ShoulderOffset : -ShoulderOffset;
+    CameraBoom->TargetArmLength = FMath::FInterpTo(
+        CameraBoom->TargetArmLength, TargetArmLength, DeltaSeconds, CameraBlendSpeed);
+    FVector Offset = CameraBoom->SocketOffset;
+    Offset.Y = FMath::FInterpTo(Offset.Y, TargetShoulder, DeltaSeconds, CameraBlendSpeed);
+    Offset.Z = FMath::FInterpTo(Offset.Z, TargetHeight, DeltaSeconds, CameraBlendSpeed);
+    CameraBoom->SocketOffset = Offset;
+    FollowCamera->SetFieldOfView(FMath::FInterpTo(
+        FollowCamera->FieldOfView, bAiming ? 70.0f : 86.0f, DeltaSeconds, CameraBlendSpeed));
 }
 
 void AEmberCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -178,21 +218,19 @@ void AEmberCharacter::InitializeStarterWeapon()
 void AEmberCharacter::SetAiming(bool bNewAiming)
 {
     bAiming = bNewAiming;
-    CameraBoom->TargetArmLength = bAiming ? AimArmLength : ExplorationArmLength;
-    CameraBoom->SocketOffset.Z = bAiming ? 58.0f : 70.0f;
-    FollowCamera->SetFieldOfView(bAiming ? 70.0f : 86.0f);
     bUseControllerRotationYaw = bAiming;
     GetCharacterMovement()->bOrientRotationToMovement = !bAiming;
 }
 
-// Toggle aiming is intentional: a normal right-click visibly enters/exits ADS
-// and does not depend on the first click also being used to capture the window.
 void AEmberCharacter::AimStarted()
 {
-    SetAiming(!bAiming);
-    UE_LOG(LogEmberCombat, Log, TEXT("Player aim toggled: %s"), bAiming ? TEXT("AIM") : TEXT("HIP"));
+    SetAiming(bToggleAimInput ? !bAiming : true);
+    UE_LOG(LogEmberCombat, Log, TEXT("Player aim started: %s"), bAiming ? TEXT("AIM") : TEXT("HIP"));
 }
-void AEmberCharacter::AimCompleted() {}
+void AEmberCharacter::AimCompleted()
+{
+    if (!bToggleAimInput) SetAiming(false);
+}
 void AEmberCharacter::FireStarted()
 {
     if (!Weapon) return;
@@ -235,37 +273,29 @@ void AEmberCharacter::HandleShotResolved(const FEmberShotResult& Result)
     const FVector Start = FVector(LastShotRequest.MuzzleOrigin);
     const FVector Delta = End - Start;
     const float Distance = Delta.Size();
-    if (TracerMesh && Distance > 1.0f)
+    if (TracerMesh && ShotTracerVisual && Distance > 1.0f)
     {
-        UStaticMeshComponent* Tracer = NewObject<UStaticMeshComponent>(this);
-        Tracer->SetStaticMesh(TracerMesh);
-        Tracer->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-        Tracer->SetCastShadow(false);
-        Tracer->RegisterComponent();
-        Tracer->SetWorldLocation(Start + Delta * 0.5f);
-        Tracer->SetWorldRotation(Delta.Rotation());
-        Tracer->SetWorldScale3D(FVector(Distance / 100.0f, 0.012f, 0.012f));
-        FTimerHandle TracerTimer;
-        TWeakObjectPtr<UStaticMeshComponent> WeakTracer(Tracer);
-        GetWorldTimerManager().SetTimer(TracerTimer, [WeakTracer]() {
-            if (WeakTracer.IsValid()) WeakTracer->DestroyComponent();
-        }, 0.055f, false);
+        ShotTracerVisual->SetStaticMesh(TracerMesh);
+        ShotTracerVisual->SetWorldLocation(Start + Delta * 0.5f);
+        ShotTracerVisual->SetWorldRotation(Delta.Rotation());
+        ShotTracerVisual->SetWorldScale3D(FVector(Distance / 100.0f, 0.012f, 0.012f));
+        ShotTracerVisual->SetHiddenInGame(false);
+        ShotTracerVisual->SetVisibility(true);
+        GetWorldTimerManager().ClearTimer(ShotTracerTimer);
+        GetWorldTimerManager().SetTimer(ShotTracerTimer, this,
+            &AEmberCharacter::ResetShotTracer, 0.055f, false);
     }
-    if (Result.bHit)
+    if (Result.bHit && ImpactFeedbackLight)
     {
-        LastHitTimeSeconds = GetWorld()->GetTimeSeconds();
-        UPointLightComponent* Impact = NewObject<UPointLightComponent>(this);
-        Impact->SetLightColor(Result.HitActor && Result.HitActor->ActorHasTag(TEXT("EmberEnemy"))
+        if (Result.bDamagedActor) LastHitTimeSeconds = GetWorld()->GetTimeSeconds();
+        ImpactFeedbackLight->SetLightColor(Result.HitActor && Result.HitActor->ActorHasTag(TEXT("EmberEnemy"))
             ? FLinearColor(1.0f, 0.05f, 0.02f) : FLinearColor(1.0f, 0.55f, 0.08f));
-        Impact->SetIntensity(5000.0f);
-        Impact->SetAttenuationRadius(240.0f);
-        Impact->RegisterComponent();
-        Impact->SetWorldLocation(FVector(Result.ImpactPoint) + FVector(Result.ImpactNormal) * 3.0f);
-        FTimerHandle ImpactTimer;
-        TWeakObjectPtr<UPointLightComponent> WeakImpact(Impact);
-        GetWorldTimerManager().SetTimer(ImpactTimer, [WeakImpact]() {
-            if (WeakImpact.IsValid()) WeakImpact->DestroyComponent();
-        }, 0.09f, false);
+        ImpactFeedbackLight->SetIntensity(5000.0f);
+        ImpactFeedbackLight->SetWorldLocation(FVector(Result.ImpactPoint) + FVector(Result.ImpactNormal) * 3.0f);
+        ImpactFeedbackLight->SetVisibility(true);
+        GetWorldTimerManager().ClearTimer(ImpactFeedbackTimer);
+        GetWorldTimerManager().SetTimer(ImpactFeedbackTimer, this,
+            &AEmberCharacter::ResetImpactFeedback, 0.09f, false);
     }
 }
 
@@ -346,30 +376,60 @@ void AEmberCharacter::PlayGunshotFeedback()
             &AEmberCharacter::ResetMuzzleFlash, 0.045f, false);
     }
 
-    USoundWaveProcedural* Shot = NewObject<USoundWaveProcedural>(this);
-    Shot->SetSampleRate(22050);
-    Shot->NumChannels = 1;
-    Shot->Duration = 0.12f;
-    Shot->SoundGroup = SOUNDGROUP_Effects;
+    if (GunshotWave && GunshotAudio && !GunshotPCM.IsEmpty())
+    {
+        GunshotWave->ResetAudio();
+        GunshotWave->QueueAudio(GunshotPCM.GetData(), GunshotPCM.Num());
+        GunshotAudio->Stop();
+        GunshotAudio->Play();
+    }
+}
+
+void AEmberCharacter::InitializeGunshotAudio()
+{
+    if (!GunshotAudio || GunshotWave) return;
+    GunshotWave = NewObject<USoundWaveProcedural>(this, TEXT("RuntimeGunshotWave"));
+    GunshotWave->SetSampleRate(22050);
+    GunshotWave->NumChannels = 1;
+    GunshotWave->Duration = 0.12f;
+    GunshotWave->SoundGroup = SOUNDGROUP_Effects;
     constexpr int32 SampleCount = 2646;
-    TArray<int16> Samples;
-    Samples.SetNumUninitialized(SampleCount);
+    GunshotPCM.SetNumUninitialized(SampleCount * sizeof(int16));
+    int16* Samples = reinterpret_cast<int16*>(GunshotPCM.GetData());
+    FRandomStream Noise(0xE4B3);
     for (int32 Index = 0; Index < SampleCount; ++Index)
     {
         const float T = static_cast<float>(Index) / 22050.0f;
         const float Envelope = FMath::Exp(-T * 34.0f);
-        const float Crack = FMath::FRandRange(-1.0f, 1.0f);
+        const float Crack = Noise.FRandRange(-1.0f, 1.0f);
         const float Boom = FMath::Sin(2.0f * PI * 92.0f * T);
-        Samples[Index] = static_cast<int16>(FMath::Clamp((Crack * 0.72f + Boom * 0.28f) * Envelope, -1.0f, 1.0f) * 28000.0f);
+        Samples[Index] = static_cast<int16>(
+            FMath::Clamp((Crack * 0.72f + Boom * 0.28f) * Envelope, -1.0f, 1.0f) * 28000.0f);
     }
-    Shot->QueueAudio(reinterpret_cast<const uint8*>(Samples.GetData()), Samples.Num() * sizeof(int16));
-    UGameplayStatics::PlaySoundAtLocation(this, Shot,
-        WeaponBarrelVisual ? WeaponBarrelVisual->GetComponentLocation() : GetActorLocation(), 1.0f, 1.0f);
+    GunshotAudio->SetSound(GunshotWave);
 }
 
 void AEmberCharacter::ResetMuzzleFlash()
 {
     if (MuzzleFlashLight) MuzzleFlashLight->SetIntensity(0.0f);
+}
+
+void AEmberCharacter::ResetShotTracer()
+{
+    if (ShotTracerVisual)
+    {
+        ShotTracerVisual->SetVisibility(false);
+        ShotTracerVisual->SetHiddenInGame(true);
+    }
+}
+
+void AEmberCharacter::ResetImpactFeedback()
+{
+    if (ImpactFeedbackLight)
+    {
+        ImpactFeedbackLight->SetIntensity(0.0f);
+        ImpactFeedbackLight->SetVisibility(false);
+    }
 }
 
 void AEmberCharacter::TogglePauseMenu()
@@ -456,7 +516,6 @@ void AEmberCharacter::UpdateWeaponPresentation(int32 Index)
 void AEmberCharacter::SwapShoulder()
 {
     bRightShoulder = !bRightShoulder;
-    CameraBoom->SocketOffset.Y = bRightShoulder ? ShoulderOffset : -ShoulderOffset;
 }
 
 FEmberShotRequest AEmberCharacter::BuildShotRequest() const

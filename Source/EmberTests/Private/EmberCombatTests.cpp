@@ -16,6 +16,12 @@ bool FEmberDamageCalculationTest::RunTest(const FString& Parameters)
     Spec.BodyPartModifier = 2.0f;
     Spec.DistanceModifier = 0.75f;
     TestEqual(TEXT("Damage modifiers are deterministic"), UEmberBallisticsLibrary::CalculateDamage(Spec), 30.0f);
+    Spec.ShotDirection = FVector(1.0f, 0.0f, 0.0f);
+    Spec.ImpactPoint = FVector(100.0f, 20.0f, 50.0f);
+    TestTrue(TEXT("Damage contract carries a normalized hit-reaction direction"),
+        FVector(Spec.ShotDirection).Equals(FVector::ForwardVector));
+    TestTrue(TEXT("Damage contract carries the impact point"),
+        FVector(Spec.ImpactPoint).Equals(FVector(100.0f, 20.0f, 50.0f)));
     return true;
 }
 

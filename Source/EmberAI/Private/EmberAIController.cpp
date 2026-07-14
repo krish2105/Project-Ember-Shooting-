@@ -101,6 +101,8 @@ void AEmberAIController::Tick(float DeltaSeconds)
     {
         FEmberDamageSpec Damage;
         Damage.BaseDamage = 8.0f;
+        Damage.ShotDirection = (End - Start).GetSafeNormal();
+        Damage.ImpactPoint = Hit.ImpactPoint;
         IEmberDamageable::Execute_ReceiveEmberDamage(Target, Damage);
         if (Tactical) Tactical->SetState(EEmberAIState::Engaging);
         FireCooldown = 0.55f + FMath::FRandRange(0.0f, 0.35f);

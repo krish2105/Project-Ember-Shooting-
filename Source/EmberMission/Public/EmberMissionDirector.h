@@ -22,11 +22,15 @@ protected:
     void UpdateMission();
     void SaveCheckpoint();
     void RestoreSavedCheckpoint();
+    void CacheEncounterActors();
+    int32 CountLivingActors(const TArray<TWeakObjectPtr<AActor>>& Actors) const;
     UPROPERTY() TObjectPtr<UEmberMissionDefinition> MissionDefinition;
     FVector LastCheckpointLocation = FVector(-45000.0f, 0.0f, 250.0f);
     int32 RemainingEnemies = 0;
     float UpdateAccumulator = 0.0f;
     bool bCheckpointReached = false;
     bool bMissionComplete = false;
+    UPROPERTY() TArray<TWeakObjectPtr<AActor>> TrackedEnemies;
+    UPROPERTY() TArray<TWeakObjectPtr<AActor>> TrackedFirstPatrol;
     static const FString CheckpointSlot;
 };

@@ -28,7 +28,36 @@ void AEmberMissionDirector::BeginPlay()
     {
         Mission->StartMission(MissionDefinition);
     }
+    CacheEncounterActors();
     GetWorldTimerManager().SetTimerForNextTick(this, &AEmberMissionDirector::RestoreSavedCheckpoint);
+}
+
+void AEmberMissionDirector::CacheEncounterActors()
+{
+    TArray<AActor*> Enemies;
+    UGameplayStatics::GetAllActorsWithTag(this, TEXT("EmberEnemy"), Enemies);
+    TrackedEnemies.Reset(Enemies.Num());
+    for (AActor* Enemy : Enemies) TrackedEnemies.Add(Enemy);
+
+    TArray<AActor*> FirstPatrol;
+    UGameplayStatics::GetAllActorsWithTag(this, TEXT("EmberPatrolOne"), FirstPatrol);
+    TrackedFirstPatrol.Reset(FirstPatrol.Num());
+    for (AActor* Enemy : FirstPatrol) TrackedFirstPatrol.Add(Enemy);
+    UE_LOG(LogEmberMission, Log, TEXT("Cached %d mission enemies (%d in first patrol)"),
+        TrackedEnemies.Num(), TrackedFirstPatrol.Num());
+}
+
+int32 AEmberMissionDirector::CountLivingActors(const TArray<TWeakObjectPtr<AActor>>& Actors) const
+{
+    int32 Count = 0;
+    for (const TWeakObjectPtr<AActor>& Entry : Actors)
+    {
+        const AActor* Actor = Entry.Get();
+        if (!Actor) continue;
+        const UEmberHealthComponent* Health = Actor->FindComponentByClass<UEmberHealthComponent>();
+        if (!Health || !Health->IsDead()) ++Count;
+    }
+    return Count;
 }
 
 void AEmberMissionDirector::Tick(float DeltaSeconds)
@@ -56,15 +85,12 @@ void AEmberMissionDirector::UpdateMission()
     APawn* Player = UGameplayStatics::GetPlayerPawn(this, 0);
     if (!Player) return;
 
-    TArray<AActor*> Enemies;
-    UGameplayStatics::GetAllActorsWithTag(this, TEXT("EmberEnemy"), Enemies);
-    RemainingEnemies = Enemies.Num();
-    TArray<AActor*> FirstPatrol;
-    UGameplayStatics::GetAllActorsWithTag(this, TEXT("EmberPatrolOne"), FirstPatrol);
+    RemainingEnemies = CountLivingActors(TrackedEnemies);
+    const int32 FirstPatrolRemaining = CountLivingActors(TrackedFirstPatrol);
     const FVector P = Player->GetActorLocation();
 
     if (P.X > -43000.0f) Complete(TEXT("Insertion"));
-    if (FirstPatrol.IsEmpty()) Complete(TEXT("FirstPatrol"));
+    if (FirstPatrolRemaining == 0) Complete(TEXT("FirstPatrol"));
     if (P.Y > 26000.0f) Complete(TEXT("StealthRoute"));
     if (P.X > -5000.0f) Complete(TEXT("Warehouse"));
     if (P.X > 9000.0f)

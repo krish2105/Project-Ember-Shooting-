@@ -6,7 +6,7 @@ Required categories include player/enemy characters, locomotion and combat anima
 
 Engine/template content and original functional placeholders may establish gameplay. Every external candidate requires individual license review in `Licenses/THIRD_PARTY_ASSETS.csv`. No external character, weapon, harbor environment, animation, VFX, music or sound library is currently approved or represented as finished.
 
-The current build uses Epic's UE 5.8 Shooter Variant third-person animation graph and UE-only rifle/pistol template meshes instead of the previous floating primitive silhouette. Transient tracer/impact lights and red hostile text remain functional placeholders. Original Project Ember weapon art for six distinct mission weapons, montage synchronization, Niagara effects and enemy art are still required by M6–M7.
+The current build uses Epic's UE 5.8 Shooter Variant third-person animation graph and UE-only rifle/pistol template meshes instead of the previous floating primitive silhouette. Reusable tracer/impact-light components and red hostile text remain functional placeholders. Original Project Ember weapon art for six distinct mission weapons, montage synchronization, Niagara effects and enemy art are still required by M6–M7.
 
 The requested supernatural-action tone is an art-direction reference only. No character, weapon, environment, name, story, audio or other proprietary asset from *Control* is included or planned for copying.
 
@@ -15,3 +15,5 @@ The final-art gate blocks any claim of a Call-of-Duty-class or AAA presentation.
 The new over-the-shoulder combat target additionally requires an original modular harbor-office interior, props and cover set; six weapon-specific rigs and montage sets; directional enemy hit reactions/physical-animation profiles; muzzle, smoke, tracer and twelve-surface Niagara variants; layered indoor/outdoor weapon audio; localized dialogue/captions; and final character/enemy materials. The supplied firefight screenshot grants no asset rights and is not an asset source.
 
 The generated stairwell geometry and per-slot weapon transforms are functional layout/presentation placeholders. They establish traversal dimensions and the six-mesh runtime contract, but they are not final environment or weapon art.
+
+The directional enemy flinch is a bounded code-owned gameplay reaction, not a substitute for authored hit-reaction montages, physical-animation profiles, wound materials or final death animation coverage.

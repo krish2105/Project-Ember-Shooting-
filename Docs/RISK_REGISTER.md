@@ -9,7 +9,7 @@
 | No approved art/audio library | High | Use tracked functional placeholders; license-review each Fab candidate |
 | Previous packaged player used flying/zero-gravity workaround | High | Replaced with normal walking foundation; require fresh packaged movement smoke test before M0 acceptance |
 | Duplicate input routes obscured failures and could double-fire | High | Consolidated to one action-binding path; keep automated mapping checks and physical device test records |
-| First mouse click can be consumed by packaged-window capture | High | Aim now toggles on press and shows explicit FOV/HUD state; require fresh keyboard/mouse verification |
+| First mouse click can be consumed by packaged-window capture | High | The packaged controller requests game-only focus; aim follows hold-to-aim by default with a separate accessibility toggle; require fresh keyboard/mouse verification |
 | Combat actions lacked visible presentation feedback | High | Added deterministic weapon silhouette, muzzle/tracer/impact feedback, hostile labels and hit marker; final licensed presentation remains gated |
 | Weapon floated through torso with unarmed pose | High | Replaced capsule attachment with `hand_r`, imported UE 5.8 Shooter Variant rifle locomotion and modeled weapon resources through the Editor, and confirmed the corrected stance in a live Metal preview |
 | Weapon switching could refill ammunition | Critical | Each of six slots now stores/restores magazine and reserve state; automation covers restored state |
@@ -23,6 +23,6 @@
 | Controller hardware results not yet recorded | High | Require physical Xbox-layout and PlayStation-layout boot-to-results tests |
 | Reference image could be mistaken for permission to copy a commercial game | Critical | Reproduce only general interaction qualities; require original or individually licensed characters, room, weapons, animation, audio, dialogue and UI |
 | Cinematic effects can hide shot-alignment or state bugs | High | Validate camera/muzzle rays and authoritative damage separately; require packaged interaction evidence, not screenshots alone |
-| Physical hit reactions can destabilize AI navigation and collision | High | Use bounded additive reactions and physical-animation profiles; reserve ragdoll for validated death states |
+| Physical hit reactions can destabilize AI navigation and collision | High | A 0.12-second bounded skeletal flinch is active; reserve ragdoll for death and keep full physical-animation profiles behind later validation |
 | Indoor effects exceed Mac frame/audio budgets | High | Pool effects, cap decals/lights/voices, provide independent scalability fallbacks and profile the authored encounter |
 | Six weapon slots accidentally presented as six finished models | Critical | Runtime now supports six independent mesh entries; keep rifle/pistol stand-ins recorded until four additional approved models and all six animation sets pass the final-art gate |

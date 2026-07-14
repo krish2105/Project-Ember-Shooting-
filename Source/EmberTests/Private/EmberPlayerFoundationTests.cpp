@@ -54,6 +54,10 @@ bool FEmberPlayerWalkingFoundationTest::RunTest(const FString& Parameters)
         MutableCharacter->GetCharacterMovement()->bOrientRotationToMovement);
     MutableCharacter->SetAiming(false);
     TestFalse(TEXT("Aim state can be exited"), MutableCharacter->IsAiming());
+    TestFalse(TEXT("Hold-to-aim is the default input contract"), MutableCharacter->IsToggleAimEnabled());
+    MutableCharacter->SetToggleAimEnabled(true);
+    TestTrue(TEXT("Toggle aim remains available as an accessibility option"), MutableCharacter->IsToggleAimEnabled());
+    MutableCharacter->SetToggleAimEnabled(false);
 
     const UStaticMeshComponent* WeaponVisual = Cast<UStaticMeshComponent>(
         MutableCharacter->GetDefaultSubobjectByName(TEXT("WeaponBodyVisual")));
@@ -72,5 +76,13 @@ bool FEmberPlayerWalkingFoundationTest::RunTest(const FString& Parameters)
     {
         TestFalse(TEXT("Tracer helper is not rendered as a fake gun"), TracerVisual->IsVisible());
     }
+    const UStaticMeshComponent* PooledTracer = Cast<UStaticMeshComponent>(
+        MutableCharacter->GetDefaultSubobjectByName(TEXT("ShotTracerVisual")));
+    TestNotNull(TEXT("A reusable bounded tracer component exists"), PooledTracer);
+    if (PooledTracer) TestFalse(TEXT("Reusable tracer begins hidden"), PooledTracer->IsVisible());
+    TestNotNull(TEXT("A reusable bounded impact light exists"),
+        MutableCharacter->GetDefaultSubobjectByName(TEXT("ImpactFeedbackLight")));
+    TestNotNull(TEXT("A reusable gunshot audio component exists"),
+        MutableCharacter->GetDefaultSubobjectByName(TEXT("GunshotAudio")));
     return true;
 }

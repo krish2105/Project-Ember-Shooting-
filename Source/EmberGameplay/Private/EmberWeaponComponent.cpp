@@ -129,8 +129,13 @@ FEmberShotResult UEmberWeaponComponent::ResolveHitscan(const FEmberShotRequest& 
         Damage.DistanceModifier = 1.0f;
         Damage.Stagger = Definition->Stagger;
         Damage.Suppression = Definition->Suppression;
+        Damage.ShotDirection = MuzzleDirection;
+        Damage.ImpactPoint = MuzzleHit.ImpactPoint;
         Damage.SourceId = Request.InstigatorId;
-        IEmberDamageable::Execute_ReceiveEmberDamage(HitActor, Damage);
+        const FEmberDamageResult DamageResult = IEmberDamageable::Execute_ReceiveEmberDamage(HitActor, Damage);
+        Result.bDamagedActor = DamageResult.AppliedToHealth > 0.0f || DamageResult.AppliedToArmor > 0.0f;
+        Result.AppliedDamage = DamageResult.AppliedToHealth + DamageResult.AppliedToArmor;
+        Result.bKilled = DamageResult.bKilled;
     }
     return Result;
 }

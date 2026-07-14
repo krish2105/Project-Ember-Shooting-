@@ -10,5 +10,7 @@ class EMBERGAMEPLAY_API AEmberHUD : public AHUD
     GENERATED_BODY()
 public:
     virtual void DrawHUD() override;
+private:
+    TArray<TWeakObjectPtr<AActor>> CachedEnemies;
+    double NextEnemyCacheRefresh = 0.0;
 };
-

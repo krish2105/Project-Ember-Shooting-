@@ -45,8 +45,23 @@ void AEmberHUD::DrawHUD()
     DrawText(CombatState, FLinearColor(1.0f, 0.45f, 0.08f),
         Canvas->ClipX - 190.0f, Canvas->ClipY - 70.0f, nullptr, 1.0f, false);
 
-    TArray<AActor*> Enemies;
-    UGameplayStatics::GetAllActorsWithTag(this, TEXT("EmberEnemy"), Enemies);
+    const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+    if (CachedEnemies.IsEmpty() || Now >= NextEnemyCacheRefresh)
+    {
+        TArray<AActor*> FoundEnemies;
+        UGameplayStatics::GetAllActorsWithTag(this, TEXT("EmberEnemy"), FoundEnemies);
+        CachedEnemies.Reset(FoundEnemies.Num());
+        for (AActor* Enemy : FoundEnemies) CachedEnemies.Add(Enemy);
+        NextEnemyCacheRefresh = Now + 2.0;
+    }
+    int32 LivingEnemies = 0;
+    for (const TWeakObjectPtr<AActor>& Entry : CachedEnemies)
+    {
+        const AActor* Enemy = Entry.Get();
+        if (!Enemy) continue;
+        const UEmberHealthComponent* EnemyHealth = Enemy->FindComponentByClass<UEmberHealthComponent>();
+        if (!EnemyHealth || !EnemyHealth->IsDead()) ++LivingEnemies;
+    }
     const FVector P = Character->GetActorLocation();
     FString Objective = TEXT("REACH THE WAREHOUSE");
     if (P.X < -43000.0f) Objective = TEXT("MOVE OUT FROM INSERTION");
@@ -54,12 +69,12 @@ void AEmberHUD::DrawHUD()
     else if (P.X < 9000.0f) Objective = TEXT("PUSH THROUGH THE WAREHOUSE");
     else if (P.X < 18000.0f) Objective = TEXT("CHECKPOINT REACHED — TAKE THE CRANE ROUTE");
     else if (P.X < 28000.0f) Objective = TEXT("CLEAR THE CONTAINER APPROACH");
-    else if (Enemies.Num() > 2) Objective = FString::Printf(TEXT("SECURE THE HARBOR — %d HOSTILES REMAIN"), Enemies.Num());
+    else if (LivingEnemies > 2) Objective = FString::Printf(TEXT("SECURE THE HARBOR — %d HOSTILES REMAIN"), LivingEnemies);
     else Objective = TEXT("EXTRACT AT THE SOUTHEAST WATERFRONT");
-    if (Enemies.Num() <= 2 && FVector::DistSquared2D(P, FVector(43000.0f, -38000.0f, P.Z)) < FMath::Square(3500.0f))
+    if (LivingEnemies <= 2 && FVector::DistSquared2D(P, FVector(43000.0f, -38000.0f, P.Z)) < FMath::Square(3500.0f))
         Objective = TEXT("MISSION COMPLETE — EMBERS AT THE WATERLINE");
     DrawText(Objective, FLinearColor(0.95f, 0.65f, 0.15f), 40.0f, 40.0f, nullptr, 1.15f, false);
-    DrawText(TEXT("WASD / STICKS MOVE   RMB / LT TOGGLE AIM   LMB / RT FIRE   R / X RELOAD   Q / DPAD-R SHOULDER   1-6 WEAPONS   ESC / MENU PAUSE"),
+    DrawText(TEXT("WASD / STICKS MOVE   HOLD RMB / LT AIM   LMB / RT FIRE   R / X RELOAD   Q / DPAD-R SHOULDER   1-6 WEAPONS   ESC / MENU PAUSE"),
         FLinearColor(0.7f, 0.75f, 0.8f), 40.0f, Canvas->ClipY - 35.0f, nullptr, 0.75f, false);
 
     if (UGameplayStatics::IsGamePaused(this))

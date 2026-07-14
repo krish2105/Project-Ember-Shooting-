@@ -8,6 +8,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
 AEmberEnemyCharacter::AEmberEnemyCharacter()
@@ -48,10 +49,43 @@ AEmberEnemyCharacter::AEmberEnemyCharacter()
     if (AnimClass.Succeeded()) GetMesh()->SetAnimInstanceClass(AnimClass.Class);
 }
 
+void AEmberEnemyCharacter::BeginPlay()
+{
+    Super::BeginPlay();
+    RestingMeshTransform = GetMesh()->GetRelativeTransform();
+}
+
 FEmberDamageResult AEmberEnemyCharacter::ReceiveEmberDamage_Implementation(const FEmberDamageSpec& DamageSpec)
 {
     if (TacticalState) TacticalState->SetState(EEmberAIState::Suppressed);
-    return DamageReceiver ? DamageReceiver->ApplyDamageSpec(DamageSpec) : FEmberDamageResult();
+    const FEmberDamageResult Result = DamageReceiver
+        ? DamageReceiver->ApplyDamageSpec(DamageSpec) : FEmberDamageResult();
+    if (!Result.bKilled && Result.AppliedToHealth + Result.AppliedToArmor > 0.0f)
+    {
+        PlayHitReaction(DamageSpec);
+    }
+    return Result;
+}
+
+void AEmberEnemyCharacter::PlayHitReaction(const FEmberDamageSpec& DamageSpec)
+{
+    if (!GetMesh()) return;
+    GetWorldTimerManager().ClearTimer(HitReactionTimer);
+    GetMesh()->SetRelativeTransform(RestingMeshTransform);
+    const FVector LocalIncoming = GetActorTransform().InverseTransformVectorNoScale(
+        FVector(DamageSpec.ShotDirection).GetSafeNormal());
+    const float ReactionStrength = FMath::Clamp(3.0f + DamageSpec.Stagger * 0.08f, 3.0f, 9.0f);
+    GetMesh()->AddLocalRotation(FRotator(
+        -LocalIncoming.Z * ReactionStrength,
+        0.0f,
+        LocalIncoming.Y * ReactionStrength));
+    GetWorldTimerManager().SetTimer(HitReactionTimer, this,
+        &AEmberEnemyCharacter::ResetHitReaction, 0.12f, false);
+}
+
+void AEmberEnemyCharacter::ResetHitReaction()
+{
+    if (GetMesh() && IsAlive()) GetMesh()->SetRelativeTransform(RestingMeshTransform);
 }
 
 bool AEmberEnemyCharacter::IsAlive() const
@@ -61,6 +95,7 @@ bool AEmberEnemyCharacter::IsAlive() const
 
 void AEmberEnemyCharacter::HandleDeath()
 {
+    GetWorldTimerManager().ClearTimer(HitReactionTimer);
     if (TacticalState) TacticalState->SetState(EEmberAIState::Dead);
     if (AController* ExistingController = GetController()) ExistingController->UnPossess();
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);

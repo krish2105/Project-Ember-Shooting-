@@ -67,6 +67,9 @@ struct EMBERCORE_API FEmberShotResult
     UPROPERTY(BlueprintReadOnly) FVector_NetQuantizeNormal ImpactNormal = FVector::UpVector;
     UPROPERTY(BlueprintReadOnly) FGameplayTag SurfaceTag;
     UPROPERTY(BlueprintReadOnly) TObjectPtr<AActor> HitActor = nullptr;
+    UPROPERTY(BlueprintReadOnly) bool bDamagedActor = false;
+    UPROPERTY(BlueprintReadOnly) float AppliedDamage = 0.0f;
+    UPROPERTY(BlueprintReadOnly) bool bKilled = false;
 };
 
 USTRUCT(BlueprintType)
@@ -80,6 +83,9 @@ struct EMBERCORE_API FEmberDamageSpec
     UPROPERTY(BlueprintReadWrite) float DistanceModifier = 1.0f;
     UPROPERTY(BlueprintReadWrite) float Stagger = 0.0f;
     UPROPERTY(BlueprintReadWrite) float Suppression = 0.0f;
+    /** World-space incoming travel direction, used for deterministic hit reactions. */
+    UPROPERTY(BlueprintReadWrite) FVector_NetQuantizeNormal ShotDirection = FVector::ForwardVector;
+    UPROPERTY(BlueprintReadWrite) FVector_NetQuantize ImpactPoint = FVector::ZeroVector;
     UPROPERTY(BlueprintReadWrite) FGameplayTag DamageType;
     UPROPERTY(BlueprintReadWrite) FGuid SourceId;
 };
