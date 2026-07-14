@@ -1,6 +1,8 @@
 #include "Misc/AutomationTest.h"
 #include "EmberBallisticsLibrary.h"
 #include "EmberTypes.h"
+#include "EmberWeaponComponent.h"
+#include "EmberWeaponDefinition.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEmberDamageCalculationTest,
     "ProjectEmber.Combat.DamageCalculation",
@@ -25,5 +27,26 @@ bool FEmberFireCadenceTest::RunTest(const FString& Parameters)
 {
     TestEqual(TEXT("600 RPM equals 0.1 seconds per shot"), UEmberBallisticsLibrary::SecondsPerShot(600.0f), 0.1f);
     TestTrue(TEXT("Invalid RPM cannot produce a usable cadence"), UEmberBallisticsLibrary::SecondsPerShot(0.0f) >= BIG_NUMBER);
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEmberWeaponStateRestoreTest,
+    "ProjectEmber.Combat.WeaponStateRestore",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FEmberWeaponStateRestoreTest::RunTest(const FString& Parameters)
+{
+    UEmberWeaponDefinition* Definition = NewObject<UEmberWeaponDefinition>();
+    Definition->MagazineCapacity = 30;
+    Definition->RoundsPerMinute = 600.0f;
+    Definition->SupportedFireModes = { EEmberFireMode::FullyAutomatic };
+    UEmberWeaponComponent* Weapon = NewObject<UEmberWeaponComponent>();
+    TestTrue(TEXT("A saved weapon state initializes"),
+        Weapon->InitializeWeaponState(Definition, 11, 73));
+    TestEqual(TEXT("Saved magazine ammunition is restored"), Weapon->GetMagazineAmmo(), 11);
+    TestEqual(TEXT("Saved reserve ammunition is restored"), Weapon->GetReserveAmmo(), 73);
+    TestTrue(TEXT("Restored automatic weapon keeps its fire mode"), Weapon->IsAutomatic());
+    TestTrue(TEXT("Aim spread is tighter than hip spread"),
+        Weapon->GetSpreadDegrees(true) < Weapon->GetSpreadDegrees(false));
     return true;
 }

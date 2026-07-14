@@ -186,17 +186,9 @@ void AEmberCharacter::ToggleCrouch() { bIsCrouched ? UnCrouch() : Crouch(); }
 
 void AEmberCharacter::InitializeStarterWeapon()
 {
-    if (!Weapon) return;
-    UEmberWeaponDefinition* Starter = LoadWeaponDefinition(
-        TEXT("Weapon.AshlineA4"), TEXT("DA_Weapon_AshlineA4"));
-    if (!Starter)
-    {
-        Starter = NewObject<UEmberWeaponDefinition>(this, TEXT("FallbackStarterWeapon"));
-        Starter->Identifier = TEXT("Weapon.AshlineA4.Runtime");
-        Starter->DisplayName = FText::FromString(TEXT("ASHLINE A4"));
-        Starter->SupportedFireModes = { EEmberFireMode::SemiAutomatic, EEmberFireMode::FullyAutomatic };
-    }
-    Weapon->InitializeWeapon(Starter, 180);
+    SlotMagazineAmmo.Init(INDEX_NONE, 6);
+    SlotReserveAmmo.Init(INDEX_NONE, 6);
+    EquipWeaponIndex(0);
 }
 
 void AEmberCharacter::SetAiming(bool bNewAiming)
@@ -309,12 +301,58 @@ bool AEmberCharacter::ShouldShowHitMarker() const
     return GetWorld() && GetWorld()->GetTimeSeconds() - LastHitTimeSeconds < 0.18;
 }
 
+void AEmberCharacter::WriteWeaponCheckpoint(FEmberCheckpointSnapshot& Snapshot) const
+{
+    for (int32 Index = 0; Index < 6; ++Index)
+    {
+        int32 Magazine = SlotMagazineAmmo.IsValidIndex(Index) ? SlotMagazineAmmo[Index] : INDEX_NONE;
+        int32 Reserve = SlotReserveAmmo.IsValidIndex(Index) ? SlotReserveAmmo[Index] : INDEX_NONE;
+        if (Index == CurrentWeaponIndex && Weapon)
+        {
+            Magazine = Weapon->GetMagazineAmmo();
+            Reserve = Weapon->GetReserveAmmo();
+        }
+        if (Magazine != INDEX_NONE)
+        {
+            Snapshot.AmmunitionByType.Add(
+                FName(*FString::Printf(TEXT("Slot%d.Magazine"), Index + 1)), Magazine);
+            Snapshot.AmmunitionByType.Add(
+                FName(*FString::Printf(TEXT("Slot%d.Reserve"), Index + 1)), Reserve);
+        }
+    }
+    Snapshot.AmmunitionByType.Add(TEXT("CurrentSlot"), CurrentWeaponIndex);
+}
+
+bool AEmberCharacter::RestoreWeaponCheckpoint(const FEmberCheckpointSnapshot& Snapshot)
+{
+    const int32* SavedCurrent = Snapshot.AmmunitionByType.Find(TEXT("CurrentSlot"));
+    if (!SavedCurrent || *SavedCurrent < 0 || *SavedCurrent >= 6) return false;
+    SlotMagazineAmmo.Init(INDEX_NONE, 6);
+    SlotReserveAmmo.Init(INDEX_NONE, 6);
+    for (int32 Index = 0; Index < 6; ++Index)
+    {
+        const int32* Magazine = Snapshot.AmmunitionByType.Find(
+            FName(*FString::Printf(TEXT("Slot%d.Magazine"), Index + 1)));
+        const int32* Reserve = Snapshot.AmmunitionByType.Find(
+            FName(*FString::Printf(TEXT("Slot%d.Reserve"), Index + 1)));
+        if (Magazine && Reserve)
+        {
+            SlotMagazineAmmo[Index] = FMath::Max(0, *Magazine);
+            SlotReserveAmmo[Index] = FMath::Max(0, *Reserve);
+        }
+    }
+    CurrentWeaponIndex = INDEX_NONE;
+    EquipWeaponIndex(*SavedCurrent);
+    return CurrentWeaponIndex == *SavedCurrent;
+}
+
 void AEmberCharacter::PlayGunshotFeedback()
 {
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
-        PC->AddPitchInput(-0.65f);
-        PC->AddYawInput(FMath::FRandRange(-0.18f, 0.18f));
+        PC->AddPitchInput(-(Weapon ? Weapon->GetVerticalRecoil() : 0.65f));
+        const float Horizontal = Weapon ? Weapon->GetHorizontalRecoil() : 0.18f;
+        PC->AddYawInput(FMath::FRandRange(-Horizontal, Horizontal));
     }
     if (MuzzleFlashLight)
     {
@@ -378,7 +416,12 @@ void AEmberCharacter::EquipWeaponIndex(int32 Index)
         TEXT("Weapon.AshlineA4"), TEXT("Weapon.SparrowC9"), TEXT("Weapon.BreachP12"),
         TEXT("Weapon.VigilD3"), TEXT("Weapon.ForgeL5"), TEXT("Weapon.HarborS9")
     };
-    if (!Weapon || Index < 0 || Index >= UE_ARRAY_COUNT(Assets)) return;
+    if (!Weapon || Index < 0 || Index >= UE_ARRAY_COUNT(Assets) || Index == CurrentWeaponIndex) return;
+    if (CurrentWeaponIndex != INDEX_NONE && SlotMagazineAmmo.IsValidIndex(CurrentWeaponIndex))
+    {
+        SlotMagazineAmmo[CurrentWeaponIndex] = Weapon->GetMagazineAmmo();
+        SlotReserveAmmo[CurrentWeaponIndex] = Weapon->GetReserveAmmo();
+    }
     UEmberWeaponDefinition* Definition = LoadWeaponDefinition(Identifiers[Index], Assets[Index]);
     if (!Definition)
     {
@@ -396,7 +439,39 @@ void AEmberCharacter::EquipWeaponIndex(int32 Index)
             ? TArray<EEmberFireMode>{ EEmberFireMode::SemiAutomatic }
             : TArray<EEmberFireMode>{ EEmberFireMode::FullyAutomatic };
     }
-    Weapon->InitializeWeapon(Definition, 180);
+    const bool bFirstEquip = !SlotMagazineAmmo.IsValidIndex(Index) || SlotMagazineAmmo[Index] == INDEX_NONE;
+    const int32 Magazine = bFirstEquip ? Definition->MagazineCapacity : SlotMagazineAmmo[Index];
+    const int32 Reserve = bFirstEquip ? 180 : SlotReserveAmmo[Index];
+    if (Weapon->InitializeWeaponState(Definition, Magazine, Reserve))
+    {
+        CurrentWeaponIndex = Index;
+        SlotMagazineAmmo[Index] = Magazine;
+        SlotReserveAmmo[Index] = Reserve;
+        UpdateWeaponPresentation(Index);
+        UE_LOG(LogEmberCombat, Log, TEXT("Equipped weapon slot %d: magazine=%d reserve=%d"),
+            Index + 1, Magazine, Reserve);
+    }
+}
+
+void AEmberCharacter::UpdateWeaponPresentation(int32 Index)
+{
+    static const FVector BodyScales[] = {
+        FVector(0.38f, 0.065f, 0.075f), FVector(0.28f, 0.075f, 0.08f),
+        FVector(0.42f, 0.09f, 0.10f), FVector(0.45f, 0.055f, 0.07f),
+        FVector(0.46f, 0.10f, 0.12f), FVector(0.52f, 0.06f, 0.075f)
+    };
+    static const FVector BarrelScales[] = {
+        FVector(0.34f, 0.025f, 0.025f), FVector(0.22f, 0.03f, 0.03f),
+        FVector(0.34f, 0.045f, 0.045f), FVector(0.50f, 0.02f, 0.02f),
+        FVector(0.30f, 0.04f, 0.04f), FVector(0.62f, 0.022f, 0.022f)
+    };
+    if (Index < 0 || Index >= UE_ARRAY_COUNT(BodyScales)) return;
+    WeaponBodyVisual->SetRelativeScale3D(BodyScales[Index]);
+    WeaponBarrelVisual->SetRelativeScale3D(BarrelScales[Index]);
+    WeaponMagazineVisual->SetRelativeScale3D(Index == 4
+        ? FVector(0.15f, 0.11f, 0.17f)
+        : (Index == 2 ? FVector(0.08f, 0.07f, 0.11f) : FVector(0.10f, 0.05f, 0.16f)));
+    WeaponSightVisual->SetVisibility(Index == 3 || Index == 5);
 }
 
 void AEmberCharacter::SwapShoulder()
@@ -409,7 +484,8 @@ FEmberShotRequest AEmberCharacter::BuildShotRequest() const
 {
     FEmberShotRequest Request;
     Request.CameraOrigin = FollowCamera->GetComponentLocation();
-    Request.DesiredDirection = FollowCamera->GetForwardVector();
+    const float SpreadRadians = FMath::DegreesToRadians(Weapon ? Weapon->GetSpreadDegrees(bAiming) : 0.0f);
+    Request.DesiredDirection = FMath::VRandCone(FollowCamera->GetForwardVector(), SpreadRadians);
     Request.MuzzleOrigin = WeaponBarrelVisual
         ? MuzzleFlashLight->GetComponentLocation()
         : GetActorLocation() + GetActorForwardVector() * 50.0f;

@@ -17,6 +17,7 @@ class EMBERGAMEPLAY_API UEmberWeaponComponent : public UActorComponent
 public:
     UEmberWeaponComponent();
     UFUNCTION(BlueprintCallable) bool InitializeWeapon(UEmberWeaponDefinition* InDefinition, int32 InReserveAmmo);
+    UFUNCTION(BlueprintCallable) bool InitializeWeaponState(UEmberWeaponDefinition* InDefinition, int32 InMagazineAmmo, int32 InReserveAmmo);
     UFUNCTION(BlueprintCallable) bool RequestFire(const FEmberShotRequest& Request);
     UFUNCTION(BlueprintCallable) void StopFire();
     UFUNCTION(BlueprintCallable) bool BeginReload();
@@ -28,6 +29,9 @@ public:
     UFUNCTION(BlueprintPure) float GetMaximumRange() const;
     UFUNCTION(BlueprintPure) FText GetWeaponDisplayName() const;
     UFUNCTION(BlueprintPure) bool IsAutomatic() const;
+    UFUNCTION(BlueprintPure) float GetSpreadDegrees(bool bAiming) const;
+    UFUNCTION(BlueprintPure) float GetVerticalRecoil() const;
+    UFUNCTION(BlueprintPure) float GetHorizontalRecoil() const;
     UFUNCTION(BlueprintPure) bool IsMuzzleObstructed() const { return bLastMuzzleObstructed; }
     UPROPERTY(BlueprintAssignable) FEmberShotResolved OnShotResolved;
     UPROPERTY(BlueprintAssignable) FEmberAmmoChanged OnAmmoChanged;

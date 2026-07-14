@@ -20,10 +20,13 @@ public:
 protected:
     void Complete(FName ObjectiveId);
     void UpdateMission();
+    void SaveCheckpoint();
+    void RestoreSavedCheckpoint();
     UPROPERTY() TObjectPtr<UEmberMissionDefinition> MissionDefinition;
     FVector LastCheckpointLocation = FVector(-45000.0f, 0.0f, 250.0f);
     int32 RemainingEnemies = 0;
     float UpdateAccumulator = 0.0f;
     bool bCheckpointReached = false;
     bool bMissionComplete = false;
+    static const FString CheckpointSlot;
 };

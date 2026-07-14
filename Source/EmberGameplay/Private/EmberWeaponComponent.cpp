@@ -13,9 +13,17 @@ UEmberWeaponComponent::UEmberWeaponComponent()
 
 bool UEmberWeaponComponent::InitializeWeapon(UEmberWeaponDefinition* InDefinition, int32 InReserveAmmo)
 {
+    return InitializeWeaponState(InDefinition,
+        IsValid(InDefinition) ? InDefinition->MagazineCapacity : 0, InReserveAmmo);
+}
+
+bool UEmberWeaponComponent::InitializeWeaponState(
+    UEmberWeaponDefinition* InDefinition, int32 InMagazineAmmo, int32 InReserveAmmo)
+{
     if (!IsValid(InDefinition) || InDefinition->MagazineCapacity <= 0 || InDefinition->RoundsPerMinute <= 0.0f) return false;
+    if (UWorld* World = GetWorld()) World->GetTimerManager().ClearTimer(ReloadTimer);
     Definition = InDefinition;
-    MagazineAmmo = Definition->MagazineCapacity;
+    MagazineAmmo = FMath::Clamp(InMagazineAmmo, 0, Definition->MagazineCapacity);
     ReserveAmmo = FMath::Max(0, InReserveAmmo);
     ActiveFireMode = EEmberFireMode::Safe;
     for (EEmberFireMode Mode : Definition->SupportedFireModes)
@@ -52,6 +60,22 @@ FText UEmberWeaponComponent::GetWeaponDisplayName() const
 bool UEmberWeaponComponent::IsAutomatic() const
 {
     return ActiveFireMode == EEmberFireMode::FullyAutomatic || ActiveFireMode == EEmberFireMode::Burst;
+}
+
+float UEmberWeaponComponent::GetSpreadDegrees(bool bAiming) const
+{
+    if (!Definition) return bAiming ? 0.25f : 2.5f;
+    return bAiming ? Definition->AimSpreadDegrees : Definition->HipSpreadDegrees;
+}
+
+float UEmberWeaponComponent::GetVerticalRecoil() const
+{
+    return Definition ? Definition->VerticalRecoil : 1.0f;
+}
+
+float UEmberWeaponComponent::GetHorizontalRecoil() const
+{
+    return Definition ? Definition->HorizontalRecoil : 0.35f;
 }
 
 bool UEmberWeaponComponent::RequestFire(const FEmberShotRequest& Request)
@@ -116,7 +140,12 @@ bool UEmberWeaponComponent::BeginReload()
     if (!Definition || ReloadStage != EEmberReloadStage::None || MagazineAmmo >= Definition->MagazineCapacity || ReserveAmmo <= 0) return false;
     ReloadStage = EEmberReloadStage::Started;
     if (UWorld* World = GetWorld())
-        World->GetTimerManager().SetTimer(ReloadTimer, this, &UEmberWeaponComponent::CompleteReload, 1.35f, false);
+    {
+        const float ReloadSeconds = MagazineAmmo == 0
+            ? Definition->EmptyReloadSeconds : Definition->TacticalReloadSeconds;
+        World->GetTimerManager().SetTimer(ReloadTimer, this,
+            &UEmberWeaponComponent::CompleteReload, FMath::Max(0.1f, ReloadSeconds), false);
+    }
     return true;
 }
 

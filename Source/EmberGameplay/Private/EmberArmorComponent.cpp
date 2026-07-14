@@ -13,3 +13,7 @@ float UEmberArmorComponent::AbsorbDamage(float IncomingDamage, float ArmorModifi
     return FMath::Max(0.0f, EffectiveDamage - OutAbsorbed);
 }
 
+void UEmberArmorComponent::RestoreArmor(float Value)
+{
+    CurrentArmor = FMath::Clamp(Value, 0.0f, MaxArmor);
+}

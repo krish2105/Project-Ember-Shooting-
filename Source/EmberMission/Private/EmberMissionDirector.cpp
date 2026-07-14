@@ -2,10 +2,14 @@
 #include "EmberHealthComponent.h"
 #include "EmberMissionDefinition.h"
 #include "EmberMissionSubsystem.h"
+#include "EmberMissionSaveGame.h"
+#include "EmberLog.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
+
+const FString AEmberMissionDirector::CheckpointSlot(TEXT("ProjectEmberCheckpoint"));
 
 AEmberMissionDirector::AEmberMissionDirector()
 {
@@ -24,6 +28,7 @@ void AEmberMissionDirector::BeginPlay()
     {
         Mission->StartMission(MissionDefinition);
     }
+    GetWorldTimerManager().SetTimerForNextTick(this, &AEmberMissionDirector::RestoreSavedCheckpoint);
 }
 
 void AEmberMissionDirector::Tick(float DeltaSeconds)
@@ -54,10 +59,12 @@ void AEmberMissionDirector::UpdateMission()
     TArray<AActor*> Enemies;
     UGameplayStatics::GetAllActorsWithTag(this, TEXT("EmberEnemy"), Enemies);
     RemainingEnemies = Enemies.Num();
+    TArray<AActor*> FirstPatrol;
+    UGameplayStatics::GetAllActorsWithTag(this, TEXT("EmberPatrolOne"), FirstPatrol);
     const FVector P = Player->GetActorLocation();
 
     if (P.X > -43000.0f) Complete(TEXT("Insertion"));
-    if (P.X > -22000.0f) Complete(TEXT("FirstPatrol"));
+    if (FirstPatrol.IsEmpty()) Complete(TEXT("FirstPatrol"));
     if (P.Y > 26000.0f) Complete(TEXT("StealthRoute"));
     if (P.X > -5000.0f) Complete(TEXT("Warehouse"));
     if (P.X > 9000.0f)
@@ -67,6 +74,7 @@ void AEmberMissionDirector::UpdateMission()
         {
             bCheckpointReached = true;
             LastCheckpointLocation = P;
+            SaveCheckpoint();
         }
     }
     if (P.X > 18000.0f) Complete(TEXT("CraneOverlook"));
@@ -84,5 +92,31 @@ void AEmberMissionDirector::UpdateMission()
     {
         Health->RestoreToFull();
         Player->SetActorLocation(LastCheckpointLocation, false, nullptr, ETeleportType::TeleportPhysics);
+    }
+}
+
+void AEmberMissionDirector::SaveCheckpoint()
+{
+    UEmberMissionSubsystem* Mission = GetWorld()->GetSubsystem<UEmberMissionSubsystem>();
+    if (!Mission) return;
+    UEmberMissionSaveGame* Save = Cast<UEmberMissionSaveGame>(
+        UGameplayStatics::CreateSaveGameObject(UEmberMissionSaveGame::StaticClass()));
+    if (!Save) return;
+    Save->Snapshot = Mission->CaptureCheckpoint(FGuid::NewGuid());
+    const bool bSaved = UGameplayStatics::SaveGameToSlot(Save, CheckpointSlot, 0);
+    UE_LOG(LogEmberMission, Log, TEXT("Checkpoint save %s"), bSaved ? TEXT("succeeded") : TEXT("failed"));
+}
+
+void AEmberMissionDirector::RestoreSavedCheckpoint()
+{
+    if (!UGameplayStatics::DoesSaveGameExist(CheckpointSlot, 0)) return;
+    UEmberMissionSaveGame* Save = Cast<UEmberMissionSaveGame>(
+        UGameplayStatics::LoadGameFromSlot(CheckpointSlot, 0));
+    UEmberMissionSubsystem* Mission = GetWorld()->GetSubsystem<UEmberMissionSubsystem>();
+    if (Save && Mission && Mission->RestoreCheckpoint(Save->Snapshot))
+    {
+        LastCheckpointLocation = Save->Snapshot.PlayerTransform.GetLocation();
+        bCheckpointReached = true;
+        UE_LOG(LogEmberMission, Log, TEXT("Checkpoint restored"));
     }
 }

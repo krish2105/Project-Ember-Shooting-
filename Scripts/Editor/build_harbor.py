@@ -363,6 +363,10 @@ def assemble_harbor(game_mode_class):
             )
             if enemy:
                 generated(enemy, f"Harbor_Enemy_{index:02d}")
+                if index < 3:
+                    enemy.set_editor_property(
+                        "tags", [unreal.Name("EmberGenerated"), unreal.Name("EmberEnemy"), unreal.Name("EmberPatrolOne")]
+                    )
                 persistent(enemy)
 
     if not unreal.EditorLevelLibrary.save_current_level():

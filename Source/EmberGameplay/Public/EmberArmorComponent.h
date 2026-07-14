@@ -12,8 +12,8 @@ public:
     UEmberArmorComponent();
     UFUNCTION(BlueprintCallable) float AbsorbDamage(float IncomingDamage, float ArmorModifier, float& OutAbsorbed);
     UFUNCTION(BlueprintPure) float GetArmor() const { return CurrentArmor; }
+    UFUNCTION(BlueprintCallable) void RestoreArmor(float Value);
 protected:
     UPROPERTY(EditDefaultsOnly, Category="Armor", meta=(ClampMin="0.0")) float MaxArmor = 100.0f;
     UPROPERTY(VisibleInstanceOnly, Category="Armor") float CurrentArmor = 100.0f;
 };
-

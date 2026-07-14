@@ -35,6 +35,8 @@ public:
     UFUNCTION(BlueprintPure) UEmberHealthComponent* GetHealthComponent() const { return Health; }
     UFUNCTION(BlueprintPure) UEmberArmorComponent* GetArmorComponent() const { return Armor; }
     UFUNCTION(BlueprintPure) UEmberWeaponComponent* GetWeaponComponent() const { return Weapon; }
+    void WriteWeaponCheckpoint(FEmberCheckpointSnapshot& Snapshot) const;
+    bool RestoreWeaponCheckpoint(const FEmberCheckpointSnapshot& Snapshot);
 protected:
     void AimStarted();
     void AimCompleted();
@@ -51,6 +53,7 @@ protected:
     void SelectWeapon5();
     void SelectWeapon6();
     void EquipWeaponIndex(int32 Index);
+    void UpdateWeaponPresentation(int32 Index);
     void MoveForward(float Value);
     void MoveRight(float Value);
     void Turn(float Value);
@@ -90,4 +93,7 @@ protected:
     bool bFireInputHeld = false;
     double LastHitTimeSeconds = -TNumericLimits<double>::Max();
     FEmberShotRequest LastShotRequest;
+    TArray<int32> SlotMagazineAmmo;
+    TArray<int32> SlotReserveAmmo;
+    int32 CurrentWeaponIndex = INDEX_NONE;
 };
