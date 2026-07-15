@@ -7,6 +7,7 @@
 #include "Engine/GameViewportClient.h"
 #include "EngineUtils.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Components/PrimitiveComponent.h"
 #include "GameFramework/Pawn.h"
 #include "Misc/Paths.h"
 #include "TimerManager.h"
@@ -26,6 +27,7 @@ void AEmberPlayerController::OnPossess(APawn* InPawn)
         VehicleSimulation->SetLocallyControlled(true);
         VehicleSimulation->SetupInputConfiguration();
     }
+    UpdateVehicleBridgeInputConsumption();
     ArmGameplayInput();
 }
 
@@ -63,6 +65,61 @@ void AEmberPlayerController::SetupInputComponent()
     FInputActionBinding& VehicleInteractBinding = InputComponent->BindAction(
         TEXT("Interact"), IE_Pressed, this, &AEmberPlayerController::VehicleInteractPressed);
     VehicleInteractBinding.bConsumeInput = false;
+    UpdateVehicleBridgeInputConsumption();
+}
+
+void AEmberPlayerController::UpdateVehicleBridgeInputConsumption()
+{
+    if (!InputComponent) return;
+    const bool bConsumeForVehicle = IsDrivingVehicle();
+    for (FInputAxisBinding& Binding : InputComponent->AxisBindings)
+    {
+        if (Binding.AxisName == TEXT("MoveForward") || Binding.AxisName == TEXT("MoveRight")
+            || Binding.AxisName == TEXT("Turn") || Binding.AxisName == TEXT("LookUp"))
+        {
+            Binding.bConsumeInput = bConsumeForVehicle;
+        }
+    }
+    for (int32 Index = 0; Index < InputComponent->GetNumActionBindings(); ++Index)
+    {
+        FInputActionBinding& Binding = InputComponent->GetActionBinding(Index);
+        if (Binding.GetActionName() == TEXT("Jump") || Binding.GetActionName() == TEXT("Interact"))
+        {
+            Binding.bConsumeInput = bConsumeForVehicle;
+        }
+    }
+    UE_LOG(LogEmberCombat, Log, TEXT("Vehicle input bridge: driving=%s consume=%s"),
+        bConsumeForVehicle ? TEXT("true") : TEXT("false"),
+        bConsumeForVehicle ? TEXT("true") : TEXT("false"));
+}
+
+void AEmberPlayerController::ResetVehicleForPlayerControl(APawn* VehiclePawn)
+{
+    if (!VehiclePawn) return;
+    // The example car owns Enhanced Input Blueprint callbacks that continue to
+    // publish zero-valued controls every frame. They race the controller bridge
+    // and erase A/D steering immediately after it is submitted. Remove only
+    // the possessed pawn's input component from this controller's stack;
+    // AEmberPlayerController remains active and is the sole driving authority.
+    VehiclePawn->DisableInput(this);
+    if (UPrimitiveComponent* PhysicsRoot = Cast<UPrimitiveComponent>(VehiclePawn->GetRootComponent()))
+    {
+        PhysicsRoot->SetPhysicsLinearVelocity(FVector::ZeroVector);
+        PhysicsRoot->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+    }
+    if (UModularVehicleBaseComponent* Simulation =
+        VehiclePawn->FindComponentByClass<UModularVehicleBaseComponent>())
+    {
+        Simulation->SetLocallyControlled(true);
+        Simulation->SetupInputConfiguration();
+        Simulation->SetInputAxis1D(TEXT("Throttle"), 0.0);
+        Simulation->SetInputAxis1D(TEXT("Steering"), 0.0);
+        Simulation->SetInputAxis1D(TEXT("Brake"), 1.0);
+        Simulation->SetInputBool(TEXT("Reverse"), false);
+        Simulation->SetInputBool(TEXT("Handbrake"), true);
+    }
+    UE_LOG(LogEmberCombat, Log,
+        TEXT("Vehicle control state reset: blueprintInput=disabled velocity=0 steering=0 handbrake=true"));
 }
 
 UEmberVehicleSeatComponent* AEmberPlayerController::GetVehicleSeatComponent() const
@@ -111,13 +168,16 @@ bool AEmberPlayerController::EnterVehicle(APawn* VehiclePawn, AEmberCharacter* D
 
     LastVehicleEnterTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
     Possess(VehiclePawn);
+    ResetVehicleForPlayerControl(VehiclePawn);
     // The example Blueprint's possession event may reactivate its authored
     // overhead camera. Resolve camera ownership after possession so cooked and
     // Editor builds deterministically select Ember's third-person chase view.
     Seat->ActivateVehicleCamera();
     SetViewTarget(VehiclePawn);
-    bVehicleHandbrake = false;
+    bVehicleHandbrake = true;
     bVehicleDriveInputConfirmed = false;
+    bVehicleSteeringInputConfirmed = false;
+    Seat->SetControlState(0.0f, 0.0f, 1.0f, true);
     return GetPawn() == VehiclePawn;
 }
 
@@ -143,6 +203,7 @@ void AEmberPlayerController::ExitVehicle()
     Seat->DestroyComponent();
     bVehicleHandbrake = false;
     bVehicleDriveInputConfirmed = false;
+    bVehicleSteeringInputConfirmed = false;
 }
 
 void AEmberPlayerController::ApplyVehicleLongitudinal(const float Value)
@@ -156,11 +217,13 @@ void AEmberPlayerController::ApplyVehicleLongitudinal(const float Value)
     bool bReverse = false;
     if (Value > KINDA_SMALL_NUMBER)
     {
+        bVehicleHandbrake = false;
         if (ForwardSpeed < -2.0f) Brake = Value;
         else Throttle = Value;
     }
     else if (Value < -KINDA_SMALL_NUMBER)
     {
+        bVehicleHandbrake = false;
         if (ForwardSpeed > 3.0f) Brake = -Value;
         else
         {
@@ -171,6 +234,7 @@ void AEmberPlayerController::ApplyVehicleLongitudinal(const float Value)
     Simulation->SetInputAxis1D(TEXT("Throttle"), Throttle);
     Simulation->SetInputAxis1D(TEXT("Brake"), Brake);
     Simulation->SetInputBool(TEXT("Reverse"), bReverse);
+    Simulation->SetInputBool(TEXT("Handbrake"), bVehicleHandbrake);
     Seat->SetControlState(bReverse ? -Throttle : Throttle, Seat->GetSteeringInput(), Brake, bVehicleHandbrake);
     if (!bVehicleDriveInputConfirmed && !FMath::IsNearlyZero(Value))
     {
@@ -186,8 +250,14 @@ void AEmberPlayerController::ApplyVehicleSteering(const float Value)
     UModularVehicleBaseComponent* Simulation = GetVehicleSimulation();
     UEmberVehicleSeatComponent* Seat = GetVehicleSeatComponent();
     if (!Simulation || !Seat) return;
-    Simulation->SetInputAxis1D(TEXT("Steering"), FMath::Clamp(Value, -1.0f, 1.0f));
-    Seat->SetControlState(Seat->GetThrottleInput(), Value, Seat->GetBrakeInput(), bVehicleHandbrake);
+    const float Steering = FMath::Clamp(Value, -1.0f, 1.0f);
+    Simulation->SetInputAxis1D(TEXT("Steering"), Steering);
+    Seat->SetControlState(Seat->GetThrottleInput(), Steering, Seat->GetBrakeInput(), bVehicleHandbrake);
+    if (!bVehicleSteeringInputConfirmed && FMath::Abs(Value) > 0.1f)
+    {
+        bVehicleSteeringInputConfirmed = true;
+        UE_LOG(LogEmberCombat, Log, TEXT("Vehicle steering input confirmed: %.2f"), Value);
+    }
 }
 
 void AEmberPlayerController::ApplyVehicleLookYaw(const float Value)
@@ -271,20 +341,64 @@ void AEmberPlayerController::EmberVehicleSmoke()
         return;
     }
     VehicleSmokeStartLocation = NearestVehicle->GetActorLocation();
+    VehicleSmokeStartYaw = NearestVehicle->GetActorRotation().Yaw;
+    VehicleSmokeRightTurnYaw = VehicleSmokeStartYaw;
+    VehicleSmokeLeftTurnYaw = VehicleSmokeStartYaw;
+    GetWorldTimerManager().SetTimer(VehicleSmokeIdleTimer, this,
+        &AEmberPlayerController::ValidateVehicleSmokeIdle, 0.55f, false);
     GetWorldTimerManager().SetTimer(VehicleSmokeStartTimer, this,
         &AEmberPlayerController::BeginVehicleSmokeMotion, 0.75f, false);
+    GetWorldTimerManager().SetTimer(VehicleSmokeReverseSteeringTimer, this,
+        &AEmberPlayerController::ReverseVehicleSmokeSteering, 5.0f, false);
+    GetWorldTimerManager().SetTimer(VehicleSmokeNeutralSteeringTimer, this,
+        &AEmberPlayerController::NeutralizeVehicleSmokeSteering, 9.0f, false);
     GetWorldTimerManager().SetTimer(VehicleSmokeCaptureTimer, this,
-        &AEmberPlayerController::CaptureVehicleSmoke, 5.0f, false);
+        &AEmberPlayerController::CaptureVehicleSmoke, 10.0f, false);
     GetWorldTimerManager().SetTimer(VehicleSmokeExitTimer, this,
-        &AEmberPlayerController::CompleteVehicleSmoke, 6.5f, false);
+        &AEmberPlayerController::CompleteVehicleSmoke, 11.5f, false);
     UE_LOG(LogEmberCombat, Log, TEXT("Vehicle smoke started"));
 #endif
+}
+
+void AEmberPlayerController::ValidateVehicleSmokeIdle()
+{
+    const APawn* Vehicle = GetPawn();
+    if (!Vehicle || !IsDrivingVehicle()) return;
+    const float IdleYawDelta = FMath::FindDeltaAngleDegrees(
+        VehicleSmokeStartYaw, Vehicle->GetActorRotation().Yaw);
+    if (FMath::Abs(IdleYawDelta) <= 1.0f)
+    {
+        UE_LOG(LogEmberCombat, Log,
+            TEXT("Vehicle idle stability: yawDelta=%.2f degrees"), IdleYawDelta);
+    }
+    else
+    {
+        UE_LOG(LogEmberCombat, Error,
+            TEXT("Vehicle idle stability failed: yawDelta=%.2f degrees"), IdleYawDelta);
+    }
 }
 
 void AEmberPlayerController::BeginVehicleSmokeMotion()
 {
     ApplyVehicleLongitudinal(1.0f);
-    ApplyVehicleSteering(0.22f);
+    ApplyVehicleSteering(0.45f);
+    UE_LOG(LogEmberCombat, Log, TEXT("Vehicle smoke steering phase: RIGHT"));
+}
+
+void AEmberPlayerController::ReverseVehicleSmokeSteering()
+{
+    const APawn* Vehicle = GetPawn();
+    VehicleSmokeRightTurnYaw = Vehicle ? Vehicle->GetActorRotation().Yaw : VehicleSmokeStartYaw;
+    ApplyVehicleSteering(-0.45f);
+    UE_LOG(LogEmberCombat, Log, TEXT("Vehicle smoke steering phase: LEFT"));
+}
+
+void AEmberPlayerController::NeutralizeVehicleSmokeSteering()
+{
+    const APawn* Vehicle = GetPawn();
+    VehicleSmokeLeftTurnYaw = Vehicle ? Vehicle->GetActorRotation().Yaw : VehicleSmokeRightTurnYaw;
+    ApplyVehicleSteering(0.0f);
+    UE_LOG(LogEmberCombat, Log, TEXT("Vehicle smoke steering phase: CENTER"));
 }
 
 void AEmberPlayerController::CaptureVehicleSmoke()
@@ -295,9 +409,12 @@ void AEmberPlayerController::CaptureVehicleSmoke()
     const float Displacement = Vehicle
         ? FVector::Dist2D(VehicleSmokeStartLocation, Vehicle->GetActorLocation()) : 0.0f;
     const FVector VehicleLocation = Vehicle ? Vehicle->GetActorLocation() : FVector::ZeroVector;
+    const float RightYawDelta = FMath::FindDeltaAngleDegrees(VehicleSmokeStartYaw, VehicleSmokeRightTurnYaw);
+    const float LeftYawDelta = FMath::FindDeltaAngleDegrees(VehicleSmokeRightTurnYaw, VehicleSmokeLeftTurnYaw);
     UE_LOG(LogEmberCombat, Log,
-        TEXT("Vehicle smoke capture: displacement=%.1f cm speed=%.1f KPH start=(%.1f,%.1f,%.1f) current=(%.1f,%.1f,%.1f)"),
+        TEXT("Vehicle smoke capture: displacement=%.1f cm speed=%.1f KPH rightYaw=%.2f leftYaw=%.2f start=(%.1f,%.1f,%.1f) current=(%.1f,%.1f,%.1f)"),
         Displacement, GetVehicleSeatComponent() ? GetVehicleSeatComponent()->GetSpeedKPH() : 0.0f,
+        RightYawDelta, LeftYawDelta,
         VehicleSmokeStartLocation.X, VehicleSmokeStartLocation.Y, VehicleSmokeStartLocation.Z,
         VehicleLocation.X, VehicleLocation.Y, VehicleLocation.Z);
     const FString ScreenshotPath = FPaths::ProjectSavedDir()

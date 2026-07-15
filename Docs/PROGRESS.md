@@ -99,3 +99,9 @@ M5–M9 remain incomplete. Prototype systems or configuration may exist, but non
 
 - Removed the stack-based startup look lock and explicitly focuses/registers the game viewport with permanent mouse capture, lock-on-capture and an unconsumed first click. Both movement and look ignore stacks are normalized during on-foot and vehicle possession.
 - Verification: Mac Editor compile passed; `Saved/Automation/20260714T234238Z` contains 10 passed / 0 failed; content validation completed with 0 errors. The final fresh package reported `lookIgnored=false`, `moveIgnored=false`, `viewportFocused=true`, entered the vehicle, accepted driving input, moved 279.6 cm and safely returned input to the on-foot character after exit. ZIP SHA-256: `36d4f9c0a739abb91ac5787158e05039f5be6f512f91ab483b729b257c7aa5a0`.
+
+## Vehicle possession and steering hotfix — 0.3.9-dev.1
+
+- Removed the example car Blueprint's competing Enhanced Input component from the controller stack during vehicle possession. Ember now has one authoritative input route for throttle, brake/reverse, steering, handbrake, orbit camera and exit.
+- Vehicle entry clears linear/angular velocity and all buffered controls, holds the handbrake until the first real longitudinal command, and republishes the controller-owned state on every vehicle tick. The chase camera is clamped to a 140-degree rear orbit so a macOS capture-delta burst cannot resemble chassis rotation.
+- Source verification: the arm64 game target compiled and linked; `Saved/Automation/20260715T122435Z` contains 10 passed / 0 failed / 0 warnings. A native packaged-data Metal smoke route recorded `yawDelta=-0.00` while idle, accepted right/left/center steering phases, moved 11.2 m, exited, and returned the input bridge to on-foot mode. Final clean packaging, checksum and hosted download verification are pending this entry's release step.

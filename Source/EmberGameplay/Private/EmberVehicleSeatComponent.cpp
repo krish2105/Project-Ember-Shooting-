@@ -2,6 +2,7 @@
 
 #include "EmberCharacter.h"
 #include "EmberLog.h"
+#include "ChaosModularVehicle/ModularVehicleBaseComponent.h"
 #include "Components/AudioComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -64,6 +65,21 @@ void UEmberVehicleSeatComponent::TickComponent(const float DeltaTime, const ELev
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
     if (!DriverCharacter.IsValid() || !EngineWave) return;
+
+    // Modular vehicle inputs are buffered, not durable state. Republish the
+    // controller-owned values every pre-physics tick so held W/S/A/D commands
+    // remain authoritative after possession and cannot be replaced by stale
+    // example-Blueprint values.
+    if (UModularVehicleBaseComponent* Simulation =
+        GetOwner()->FindComponentByClass<UModularVehicleBaseComponent>())
+    {
+        Simulation->SetInputAxis1D(TEXT("Throttle"), FMath::Abs(ThrottleInput));
+        Simulation->SetInputAxis1D(TEXT("Steering"), SteeringInput);
+        Simulation->SetInputAxis1D(TEXT("Brake"), BrakeInput);
+        Simulation->SetInputBool(TEXT("Reverse"), ThrottleInput < -KINDA_SMALL_NUMBER);
+        Simulation->SetInputBool(TEXT("Handbrake"), bHandbrake);
+    }
+
     const float SpeedRPM = FMath::Clamp(GetSpeedKPH() / 150.0f, 0.0f, 1.0f);
     const float TargetRPM = FMath::Clamp(0.11f + SpeedRPM * 0.72f
         + FMath::Abs(ThrottleInput) * 0.28f, 0.0f, 1.0f);
@@ -73,6 +89,7 @@ void UEmberVehicleSeatComponent::TickComponent(const float DeltaTime, const ELev
     {
         EngineAudio->SetVolumeMultiplier(0.34f + TargetRPM * 0.34f);
     }
+
     if (!bMotionLogged && GetSpeedKPH() > 2.0f)
     {
         bMotionLogged = true;
@@ -149,7 +166,11 @@ void UEmberVehicleSeatComponent::BuildVehicleCamera()
 void UEmberVehicleSeatComponent::AddCameraInput(const float YawDelta, const float PitchDelta)
 {
     if (!VehicleCameraBoom) return;
-    CameraYawOffset = FMath::UnwindDegrees(CameraYawOffset + YawDelta);
+    // A permanently captured macOS cursor can emit a short burst of synthetic
+    // deltas while possession changes. A bounded chase orbit prevents that
+    // burst from spinning continuously around the car or presenting the front
+    // of the vehicle as though the chassis itself were rotating.
+    CameraYawOffset = FMath::Clamp(CameraYawOffset + YawDelta, -70.0f, 70.0f);
     CameraPitch = FMath::Clamp(CameraPitch + PitchDelta, -32.0f, 8.0f);
     VehicleCameraBoom->SetRelativeRotation(FRotator(CameraPitch, CameraYawOffset, 0.0f));
 }

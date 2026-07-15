@@ -34,6 +34,8 @@ private:
     void ArmGameplayInput();
     void ActivateGameplayInput();
     void FocusGameplayViewport();
+    void UpdateVehicleBridgeInputConsumption();
+    void ResetVehicleForPlayerControl(APawn* VehiclePawn);
     UModularVehicleBaseComponent* GetVehicleSimulation() const;
     void ApplyVehicleLongitudinal(float Value);
     void ApplyVehicleSteering(float Value);
@@ -42,16 +44,26 @@ private:
     void VehicleHandbrakePressed();
     void VehicleHandbrakeReleased();
     void VehicleInteractPressed();
+    void ValidateVehicleSmokeIdle();
     void BeginVehicleSmokeMotion();
+    void ReverseVehicleSmokeSteering();
+    void NeutralizeVehicleSmokeSteering();
     void CaptureVehicleSmoke();
     void CompleteVehicleSmoke();
 
     FTimerHandle GameplayInputActivationTimer;
+    FTimerHandle VehicleSmokeIdleTimer;
     FTimerHandle VehicleSmokeStartTimer;
+    FTimerHandle VehicleSmokeReverseSteeringTimer;
+    FTimerHandle VehicleSmokeNeutralSteeringTimer;
     FTimerHandle VehicleSmokeCaptureTimer;
     FTimerHandle VehicleSmokeExitTimer;
     FVector VehicleSmokeStartLocation = FVector::ZeroVector;
+    float VehicleSmokeStartYaw = 0.0f;
+    float VehicleSmokeRightTurnYaw = 0.0f;
+    float VehicleSmokeLeftTurnYaw = 0.0f;
     double LastVehicleEnterTime = -1000.0;
     bool bVehicleHandbrake = false;
     bool bVehicleDriveInputConfirmed = false;
+    bool bVehicleSteeringInputConfirmed = false;
 };
