@@ -11,6 +11,8 @@ elif [[ -d "/Users/Shared/Epic Games/UE_5.8" ]]; then
   UE_ROOT="/Users/Shared/Epic Games/UE_5.8"
 elif [[ -d "$HOME/Desktop/UE_5.8" ]]; then
   UE_ROOT="$HOME/Desktop/UE_5.8"
+elif [[ -d "$HOME/Desktop/Game Dev Projects/UE_5.8" ]]; then
+  UE_ROOT="$HOME/Desktop/Game Dev Projects/UE_5.8"
 else
   UE_ROOT="/Users/Shared/Epic Games/UE_5.8"
 fi

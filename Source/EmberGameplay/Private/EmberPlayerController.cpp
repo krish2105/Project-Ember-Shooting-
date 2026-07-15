@@ -36,16 +36,33 @@ void AEmberPlayerController::SetupInputComponent()
     // These controller-level bindings remain active while a Blueprint vehicle
     // is possessed. On foot, the callbacks intentionally no-op and the
     // character's existing bindings remain authoritative.
-    InputComponent->BindAxis(TEXT("MoveForward"), this, &AEmberPlayerController::ApplyVehicleLongitudinal);
-    InputComponent->BindAxis(TEXT("MoveRight"), this, &AEmberPlayerController::ApplyVehicleSteering);
-    InputComponent->BindAxis(TEXT("Turn"), this, &AEmberPlayerController::ApplyVehicleLookYaw);
-    InputComponent->BindAxis(TEXT("LookUp"), this, &AEmberPlayerController::ApplyVehicleLookPitch);
-    InputComponent->BindAction(TEXT("Jump"), IE_Pressed, this,
-        &AEmberPlayerController::VehicleHandbrakePressed);
-    InputComponent->BindAction(TEXT("Jump"), IE_Released, this,
-        &AEmberPlayerController::VehicleHandbrakeReleased);
-    InputComponent->BindAction(TEXT("Interact"), IE_Pressed, this,
-        &AEmberPlayerController::VehicleInteractPressed);
+    // Controller input components are evaluated before the possessed pawn. A
+    // consuming controller binding therefore prevents the on-foot character
+    // from ever receiving the same mapping, even when the vehicle callback
+    // correctly no-ops. Keep these vehicle bridge bindings non-consuming so
+    // WASD, mouse look, jump and interact continue down to AEmberCharacter.
+    FInputAxisBinding& MoveForwardBinding = InputComponent->BindAxis(
+        TEXT("MoveForward"), this, &AEmberPlayerController::ApplyVehicleLongitudinal);
+    MoveForwardBinding.bConsumeInput = false;
+    FInputAxisBinding& MoveRightBinding = InputComponent->BindAxis(
+        TEXT("MoveRight"), this, &AEmberPlayerController::ApplyVehicleSteering);
+    MoveRightBinding.bConsumeInput = false;
+    FInputAxisBinding& TurnBinding = InputComponent->BindAxis(
+        TEXT("Turn"), this, &AEmberPlayerController::ApplyVehicleLookYaw);
+    TurnBinding.bConsumeInput = false;
+    FInputAxisBinding& LookUpBinding = InputComponent->BindAxis(
+        TEXT("LookUp"), this, &AEmberPlayerController::ApplyVehicleLookPitch);
+    LookUpBinding.bConsumeInput = false;
+
+    FInputActionBinding& HandbrakePressedBinding = InputComponent->BindAction(
+        TEXT("Jump"), IE_Pressed, this, &AEmberPlayerController::VehicleHandbrakePressed);
+    HandbrakePressedBinding.bConsumeInput = false;
+    FInputActionBinding& HandbrakeReleasedBinding = InputComponent->BindAction(
+        TEXT("Jump"), IE_Released, this, &AEmberPlayerController::VehicleHandbrakeReleased);
+    HandbrakeReleasedBinding.bConsumeInput = false;
+    FInputActionBinding& VehicleInteractBinding = InputComponent->BindAction(
+        TEXT("Interact"), IE_Pressed, this, &AEmberPlayerController::VehicleInteractPressed);
+    VehicleInteractBinding.bConsumeInput = false;
 }
 
 UEmberVehicleSeatComponent* AEmberPlayerController::GetVehicleSeatComponent() const
