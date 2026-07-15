@@ -6,7 +6,7 @@ The repository contains the buildable source, Editor-generated content and packa
 
 The current keyboard/mouse focus hotfix, driveable-vehicle work and Gatekeeper instructions are documented in [Docs/RELEASE_NOTES_0.3.7-dev.1.md](Docs/RELEASE_NOTES_0.3.7-dev.1.md).
 
-[Download Project Ember v0.3.7-dev.1 for Apple Silicon macOS](https://github.com/krish2105/Project-Ember-Shooting-/releases/download/v0.3.7-dev.1/ProjectEmber-mac-arm64-Development.zip)
+[Download Project Ember v0.3.9-dev.1 for Apple Silicon macOS](https://github.com/krish2105/Project-Ember-Shooting-/releases/download/v0.3.9-dev.1/ProjectEmber-mac-arm64-Development.zip)
 
 SHA-256: `36d4f9c0a739abb91ac5787158e05039f5be6f512f91ab483b729b257c7aa5a0`
 
