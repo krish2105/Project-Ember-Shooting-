@@ -15,6 +15,7 @@ public:
     UEmberHealthComponent();
     UFUNCTION(BlueprintCallable) float ApplyHealthDamage(float Amount);
     UFUNCTION(BlueprintCallable) void RestoreToFull();
+    UFUNCTION(BlueprintCallable) void RestoreHealth(float Value);
     UFUNCTION(BlueprintPure) float GetHealth() const { return CurrentHealth; }
     UFUNCTION(BlueprintPure) float GetMaxHealth() const { return MaxHealth; }
     UFUNCTION(BlueprintPure) bool IsDead() const { return CurrentHealth <= 0.0f; }
@@ -24,4 +25,3 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category="Health", meta=(ClampMin="1.0")) float MaxHealth = 100.0f;
     UPROPERTY(VisibleInstanceOnly, Category="Health") float CurrentHealth = 100.0f;
 };
-

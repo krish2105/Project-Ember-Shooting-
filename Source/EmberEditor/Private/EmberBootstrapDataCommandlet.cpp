@@ -1,6 +1,7 @@
 #include "EmberBootstrapDataCommandlet.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Animation/AnimSequence.h"
 #include "EmberEnemyArchetypeDefinition.h"
 #include "EmberMissionDefinition.h"
 #include "EmberPresentationDefinitions.h"
@@ -99,6 +100,16 @@ int32 UEmberBootstrapDataCommandlet::Main(const FString& Params)
         Asset->MaximumRange = Row.Range;
         Asset->SupportedFireModes = Row.Modes;
         Asset->AimSpreadDegrees = Row.Category == EEmberWeaponCategory::PrecisionRifle ? 0.05f : 0.25f;
+        const bool bPistol = Row.Category == EEmberWeaponCategory::Pistol;
+        const FString AnimationRoot = bPistol
+            ? TEXT("/Game/Characters/Mannequins/Anims/Pistol")
+            : TEXT("/Game/Characters/Mannequins/Anims/Rifle");
+        const FString FireName = bPistol ? TEXT("MM_Pistol_Fire") : TEXT("MM_Rifle_Fire");
+        const FString ReloadName = bPistol ? TEXT("MM_Pistol_Reload") : TEXT("MM_Rifle_Reload");
+        Asset->FireAnimation = TSoftObjectPtr<UAnimSequence>(FSoftObjectPath(
+            FString::Printf(TEXT("%s/%s.%s"), *AnimationRoot, *FireName, *FireName)));
+        Asset->ReloadAnimation = TSoftObjectPtr<UAnimSequence>(FSoftObjectPath(
+            FString::Printf(TEXT("%s/%s.%s"), *AnimationRoot, *ReloadName, *ReloadName)));
         if (!Save(Asset)) ++Errors;
     }
 

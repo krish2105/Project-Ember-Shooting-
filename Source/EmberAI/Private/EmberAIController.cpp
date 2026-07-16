@@ -1,4 +1,5 @@
 #include "EmberAIController.h"
+#include "EmberEnemyCharacter.h"
 #include "EmberTacticalStateComponent.h"
 #include "EmberInterfaces.h"
 #include "Engine/World.h"
@@ -8,6 +9,8 @@
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseConfig_Hearing.h"
 #include "Perception/AISenseConfig_Sight.h"
+#include "Navigation/PathFollowingComponent.h"
+#include "EmberLog.h"
 
 AEmberAIController::AEmberAIController()
 {
@@ -16,8 +19,8 @@ AEmberAIController::AEmberAIController()
     SetPerceptionComponent(*EmberPerception);
 
     SightConfig = CreateDefaultSubobject<UAISenseConfig_Sight>(TEXT("SightConfig"));
-    SightConfig->SightRadius = 3000.0f;
-    SightConfig->LoseSightRadius = 3600.0f;
+    SightConfig->SightRadius = 6500.0f;
+    SightConfig->LoseSightRadius = 7500.0f;
     SightConfig->PeripheralVisionAngleDegrees = 70.0f;
     SightConfig->DetectionByAffiliation.bDetectEnemies = true;
     SightConfig->DetectionByAffiliation.bDetectFriendlies = false;
@@ -37,6 +40,10 @@ AEmberAIController::AEmberAIController()
 void AEmberAIController::OnPossess(APawn* InPawn)
 {
     Super::OnPossess(InPawn);
+    PatrolAnchor = InPawn ? InPawn->GetActorLocation() : FVector::ZeroVector;
+    PatrolAngle = FMath::FRandRange(0.0f, TWO_PI);
+    FlankDirection = FMath::RandBool() ? 1.0f : -1.0f;
+    bFacingAlignmentLogged = false;
     if (InPawn && !InPawn->FindComponentByClass<UEmberTacticalStateComponent>())
     {
         UE_LOG(LogTemp, Warning, TEXT("AI pawn %s has no Ember tactical state component."), *InPawn->GetName());
@@ -67,42 +74,83 @@ void AEmberAIController::Tick(float DeltaSeconds)
     APawn* ControlledPawn = GetPawn();
     APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
     if (!ControlledPawn || !PlayerPawn) return;
-    if (!CombatTarget.IsValid() && LineOfSightTo(PlayerPawn)) CombatTarget = PlayerPawn;
+    const float PlayerDistance = FVector::Dist2D(ControlledPawn->GetActorLocation(), PlayerPawn->GetActorLocation());
+    if (!CombatTarget.IsValid() && (PlayerDistance < 7000.0f || LineOfSightTo(PlayerPawn))) CombatTarget = PlayerPawn;
     AActor* Target = CombatTarget.Get();
-    if (!Target) return;
+    if (!Target)
+    {
+        PatrolAngle += 0.12f;
+        const FVector PatrolGoal = PatrolAnchor + FVector(FMath::Cos(PatrolAngle), FMath::Sin(PatrolAngle), 0.0f) * 420.0f;
+        const EPathFollowingRequestResult::Type Result = MoveToLocation(PatrolGoal, 90.0f, true, true, false, true);
+        if (Result == EPathFollowingRequestResult::Failed)
+            ControlledPawn->AddMovementInput((PatrolGoal - ControlledPawn->GetActorLocation()).GetSafeNormal2D(), 0.65f);
+        return;
+    }
+    SetFocus(Target);
 
     UEmberTacticalStateComponent* Tactical = ControlledPawn->FindComponentByClass<UEmberTacticalStateComponent>();
     const FVector ToTarget = Target->GetActorLocation() - ControlledPawn->GetActorLocation();
     const float Distance = ToTarget.Size2D();
-    FVector Destination = Target->GetActorLocation();
-    if (Distance < 850.0f)
+    const FVector TowardTarget = ToTarget.GetSafeNormal2D();
+    const FVector Lateral = FVector::CrossProduct(TowardTarget, FVector::UpVector).GetSafeNormal2D();
+    if (!TowardTarget.IsNearlyZero())
+    {
+        // Keep the capsule, Manny forward basis, weapon and authoritative shot
+        // direction aligned. Relying on focus alone left placed World Partition
+        // enemies at their serialized 180-degree spawn yaw on some launches.
+        const FRotator TargetFacing(0.0f, TowardTarget.Rotation().Yaw, 0.0f);
+        SetControlRotation(TargetFacing);
+        ControlledPawn->SetActorRotation(TargetFacing, ETeleportType::None);
+        if (!bFacingAlignmentLogged)
+        {
+            bFacingAlignmentLogged = true;
+            const float FacingDot = FVector::DotProduct(
+                ControlledPawn->GetActorForwardVector().GetSafeNormal2D(), TowardTarget);
+            UE_LOG(LogEmberAI, Log, TEXT("Enemy facing aligned: %s target=%s dot=%.3f"),
+                *ControlledPawn->GetName(), *Target->GetName(), FacingDot);
+        }
+    }
+    FVector Destination = Target->GetActorLocation() - TowardTarget * DesiredCombatRange;
+    bool bEmergencySeparation = false;
+    if (Distance < MinimumCombatRange)
     {
         if (Tactical) Tactical->SetState(EEmberAIState::Retreating);
-        Destination = ControlledPawn->GetActorLocation() - ToTarget.GetSafeNormal2D() * 600.0f;
+        bEmergencySeparation = true;
+        // Move decisively away instead of choosing a point that can still lie
+        // inside the player's third-person camera/capsule space.
+        Destination = ControlledPawn->GetActorLocation() - TowardTarget *
+            FMath::Max(650.0f, DesiredCombatRange - Distance);
     }
-    else if (Distance < 2200.0f)
+    else if (Distance < MaximumCombatRange)
     {
         if (Tactical) Tactical->SetState(EEmberAIState::Flanking);
-        Destination += FVector::CrossProduct(ToTarget.GetSafeNormal2D(), FVector::UpVector) * 650.0f;
+        // Strafe around a stable combat ring. The previous target-relative
+        // offset pulled enemies to within 6.5 m and caused rig interpenetration.
+        Destination += Lateral * FlankDirection * 620.0f;
     }
     else
     {
         if (Tactical) Tactical->SetState(EEmberAIState::Advancing);
     }
-    MoveToLocation(Destination, 250.0f, true, true, false, true);
-
-    if (Distance > 3600.0f || FireCooldown > 0.0f || !LineOfSightTo(Target)) return;
-    const FVector Start = ControlledPawn->GetActorLocation() + FVector(0.0f, 0.0f, 65.0f);
-    const FVector End = Target->GetActorLocation() + FVector(0.0f, 0.0f, 55.0f);
-    FHitResult Hit;
-    FCollisionQueryParams Params(SCENE_QUERY_STAT(EmberAIFire), false, ControlledPawn);
-    if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params) && Hit.GetActor() == Target &&
-        Target->GetClass()->ImplementsInterface(UEmberDamageable::StaticClass()))
+    const EPathFollowingRequestResult::Type MoveResult = MoveToLocation(
+        Destination, bEmergencySeparation ? 80.0f : 220.0f, true, true, false, true);
+    if (MoveResult == EPathFollowingRequestResult::Failed || ControlledPawn->GetVelocity().SizeSquared2D() < 25.0f)
     {
-        FEmberDamageSpec Damage;
-        Damage.BaseDamage = 8.0f;
-        IEmberDamageable::Execute_ReceiveEmberDamage(Target, Damage);
+        const FVector FallbackDirection = bEmergencySeparation
+            ? -TowardTarget
+            : (Destination - ControlledPawn->GetActorLocation()).GetSafeNormal2D();
+        ControlledPawn->AddMovementInput(FallbackDirection, bEmergencySeparation ? 1.0f : 0.7f);
+    }
+
+    // FireAt performs the authoritative muzzle visibility trace. Using
+    // AAIController::LineOfSightTo here as a second gate prevented suppression
+    // fire in the generated World Partition map when the target was visible
+    // from the muzzle but not from the controller's abstract eye point.
+    if (Distance < MinimumFireRange || Distance > 4500.0f || FireCooldown > 0.0f) return;
+    if (AEmberEnemyCharacter* Enemy = Cast<AEmberEnemyCharacter>(ControlledPawn))
+    {
+        Enemy->FireAt(Target);
         if (Tactical) Tactical->SetState(EEmberAIState::Engaging);
-        FireCooldown = 0.55f + FMath::FRandRange(0.0f, 0.35f);
+        FireCooldown = 0.65f + FMath::FRandRange(0.0f, 0.45f);
     }
 }

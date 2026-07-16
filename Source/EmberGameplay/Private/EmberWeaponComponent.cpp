@@ -13,9 +13,17 @@ UEmberWeaponComponent::UEmberWeaponComponent()
 
 bool UEmberWeaponComponent::InitializeWeapon(UEmberWeaponDefinition* InDefinition, int32 InReserveAmmo)
 {
+    return InitializeWeaponState(InDefinition,
+        IsValid(InDefinition) ? InDefinition->MagazineCapacity : 0, InReserveAmmo);
+}
+
+bool UEmberWeaponComponent::InitializeWeaponState(
+    UEmberWeaponDefinition* InDefinition, int32 InMagazineAmmo, int32 InReserveAmmo)
+{
     if (!IsValid(InDefinition) || InDefinition->MagazineCapacity <= 0 || InDefinition->RoundsPerMinute <= 0.0f) return false;
+    if (UWorld* World = GetWorld()) World->GetTimerManager().ClearTimer(ReloadTimer);
     Definition = InDefinition;
-    MagazineAmmo = Definition->MagazineCapacity;
+    MagazineAmmo = FMath::Clamp(InMagazineAmmo, 0, Definition->MagazineCapacity);
     ReserveAmmo = FMath::Max(0, InReserveAmmo);
     ActiveFireMode = EEmberFireMode::Safe;
     for (EEmberFireMode Mode : Definition->SupportedFireModes)
@@ -27,6 +35,7 @@ bool UEmberWeaponComponent::InitializeWeapon(UEmberWeaponDefinition* InDefinitio
         }
     }
     ReloadStage = EEmberReloadStage::None;
+    ReloadDurationSeconds = 0.0f;
     OnAmmoChanged.Broadcast(MagazineAmmo, ReserveAmmo);
     return true;
 }
@@ -52,6 +61,22 @@ FText UEmberWeaponComponent::GetWeaponDisplayName() const
 bool UEmberWeaponComponent::IsAutomatic() const
 {
     return ActiveFireMode == EEmberFireMode::FullyAutomatic || ActiveFireMode == EEmberFireMode::Burst;
+}
+
+float UEmberWeaponComponent::GetSpreadDegrees(bool bAiming) const
+{
+    if (!Definition) return bAiming ? 0.25f : 2.5f;
+    return bAiming ? Definition->AimSpreadDegrees : Definition->HipSpreadDegrees;
+}
+
+float UEmberWeaponComponent::GetVerticalRecoil() const
+{
+    return Definition ? Definition->VerticalRecoil : 1.0f;
+}
+
+float UEmberWeaponComponent::GetHorizontalRecoil() const
+{
+    return Definition ? Definition->HorizontalRecoil : 0.35f;
 }
 
 bool UEmberWeaponComponent::RequestFire(const FEmberShotRequest& Request)
@@ -105,8 +130,13 @@ FEmberShotResult UEmberWeaponComponent::ResolveHitscan(const FEmberShotRequest& 
         Damage.DistanceModifier = 1.0f;
         Damage.Stagger = Definition->Stagger;
         Damage.Suppression = Definition->Suppression;
+        Damage.ShotDirection = MuzzleDirection;
+        Damage.ImpactPoint = MuzzleHit.ImpactPoint;
         Damage.SourceId = Request.InstigatorId;
-        IEmberDamageable::Execute_ReceiveEmberDamage(HitActor, Damage);
+        const FEmberDamageResult DamageResult = IEmberDamageable::Execute_ReceiveEmberDamage(HitActor, Damage);
+        Result.bDamagedActor = DamageResult.AppliedToHealth > 0.0f || DamageResult.AppliedToArmor > 0.0f;
+        Result.AppliedDamage = DamageResult.AppliedToHealth + DamageResult.AppliedToArmor;
+        Result.bKilled = DamageResult.bKilled;
     }
     return Result;
 }
@@ -116,7 +146,14 @@ bool UEmberWeaponComponent::BeginReload()
     if (!Definition || ReloadStage != EEmberReloadStage::None || MagazineAmmo >= Definition->MagazineCapacity || ReserveAmmo <= 0) return false;
     ReloadStage = EEmberReloadStage::Started;
     if (UWorld* World = GetWorld())
-        World->GetTimerManager().SetTimer(ReloadTimer, this, &UEmberWeaponComponent::CompleteReload, 1.35f, false);
+    {
+        const float ReloadSeconds = MagazineAmmo == 0
+            ? Definition->EmptyReloadSeconds : Definition->TacticalReloadSeconds;
+        ReloadStartedAtSeconds = World->GetTimeSeconds();
+        ReloadDurationSeconds = FMath::Max(0.1f, ReloadSeconds);
+        World->GetTimerManager().SetTimer(ReloadTimer, this,
+            &UEmberWeaponComponent::CompleteReload, ReloadDurationSeconds, false);
+    }
     return true;
 }
 
@@ -131,6 +168,7 @@ bool UEmberWeaponComponent::CancelReload()
 {
     if (ReloadStage == EEmberReloadStage::None || ReloadStage == EEmberReloadStage::MagazineInserted) return false;
     ReloadStage = EEmberReloadStage::None;
+    ReloadDurationSeconds = 0.0f;
     if (UWorld* World = GetWorld()) World->GetTimerManager().ClearTimer(ReloadTimer);
     return true;
 }
@@ -142,5 +180,14 @@ void UEmberWeaponComponent::CompleteReload()
     MagazineAmmo += Loaded;
     ReserveAmmo -= Loaded;
     ReloadStage = EEmberReloadStage::None;
+    ReloadDurationSeconds = 0.0f;
     OnAmmoChanged.Broadcast(MagazineAmmo, ReserveAmmo);
+}
+
+float UEmberWeaponComponent::GetReloadProgress() const
+{
+    const UWorld* World = GetWorld();
+    if (!World || ReloadStage == EEmberReloadStage::None || ReloadDurationSeconds <= 0.0f) return 0.0f;
+    return FMath::Clamp(static_cast<float>((World->GetTimeSeconds() - ReloadStartedAtSeconds)
+        / ReloadDurationSeconds), 0.0f, 1.0f);
 }

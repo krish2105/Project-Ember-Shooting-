@@ -22,3 +22,9 @@ void UEmberHealthComponent::RestoreToFull()
     OnHealthChanged.Broadcast(Previous, CurrentHealth);
 }
 
+void UEmberHealthComponent::RestoreHealth(float Value)
+{
+    const float Previous = CurrentHealth;
+    CurrentHealth = FMath::Clamp(Value, 0.0f, MaxHealth);
+    OnHealthChanged.Broadcast(Previous, CurrentHealth);
+}

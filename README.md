@@ -4,7 +4,11 @@ PROJECT EMBER is a native Apple Silicon, third-person tactical shooter vertical 
 
 The repository contains the buildable source, Editor-generated content and packaged-release workflow. UE 5.8, Xcode 26.6 and the Apple Metal Toolchain have been verified on the M4 Pro build host.
 
-The current playable release and Gatekeeper instructions are documented in [Docs/RELEASE_NOTES_0.1.2.md](Docs/RELEASE_NOTES_0.1.2.md).
+The current keyboard/mouse focus hotfix, driveable-vehicle work and Gatekeeper instructions are documented in [Docs/RELEASE_NOTES_0.3.7-dev.1.md](Docs/RELEASE_NOTES_0.3.7-dev.1.md).
+
+[Download Project Ember v0.3.9-dev.1 for Apple Silicon macOS](https://github.com/krish2105/Project-Ember-Shooting-/releases/download/v0.3.9-dev.1/ProjectEmber-mac-arm64-Development.zip)
+
+SHA-256: `36d4f9c0a739abb91ac5787158e05039f5be6f512f91ab483b729b257c7aa5a0`
 
 ## Bootstrap
 

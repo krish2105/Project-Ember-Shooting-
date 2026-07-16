@@ -14,11 +14,14 @@
   ],
   "Plugins": [
     { "Name": "EnhancedInput", "Enabled": true },
-    { "Name": "CommonUI", "Enabled": true },
+    { "Name": "CommonUI", "Enabled": false },
+    { "Name": "AndroidFileServer", "Enabled": false },
     { "Name": "GameplayTagsEditor", "Enabled": true, "TargetAllowList": ["Editor"] },
     { "Name": "StateTree", "Enabled": true },
     { "Name": "GameplayStateTree", "Enabled": true },
     { "Name": "Niagara", "Enabled": true },
+    { "Name": "ChaosModularVehicle", "Enabled": true },
+    { "Name": "ChaosModularVehicleExamples", "Enabled": true },
     { "Name": "ModelingToolsEditorMode", "Enabled": true, "TargetAllowList": ["Editor"] }
   ],
   "TargetPlatforms": ["Mac"]

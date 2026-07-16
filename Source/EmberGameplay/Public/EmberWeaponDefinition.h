@@ -6,6 +6,7 @@
 #include "EmberWeaponDefinition.generated.h"
 
 class UAnimMontage;
+class UAnimSequence;
 class UCurveFloat;
 class UNiagaraSystem;
 class USkeletalMesh;
@@ -58,6 +59,8 @@ public:
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Presentation") TSoftObjectPtr<UAnimMontage> FireMontage;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Presentation") TSoftObjectPtr<UAnimMontage> ReloadMontage;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Presentation") TSoftObjectPtr<UAnimSequence> FireAnimation;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Presentation") TSoftObjectPtr<UAnimSequence> ReloadAnimation;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Presentation") TSoftObjectPtr<UNiagaraSystem> MuzzleEffect;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Presentation") TSoftObjectPtr<USoundBase> FireSound;
 };

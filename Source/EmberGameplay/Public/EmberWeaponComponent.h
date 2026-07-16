@@ -17,6 +17,7 @@ class EMBERGAMEPLAY_API UEmberWeaponComponent : public UActorComponent
 public:
     UEmberWeaponComponent();
     UFUNCTION(BlueprintCallable) bool InitializeWeapon(UEmberWeaponDefinition* InDefinition, int32 InReserveAmmo);
+    UFUNCTION(BlueprintCallable) bool InitializeWeaponState(UEmberWeaponDefinition* InDefinition, int32 InMagazineAmmo, int32 InReserveAmmo);
     UFUNCTION(BlueprintCallable) bool RequestFire(const FEmberShotRequest& Request);
     UFUNCTION(BlueprintCallable) void StopFire();
     UFUNCTION(BlueprintCallable) bool BeginReload();
@@ -25,9 +26,16 @@ public:
     UFUNCTION(BlueprintPure) bool CanFire() const;
     UFUNCTION(BlueprintPure) int32 GetMagazineAmmo() const { return MagazineAmmo; }
     UFUNCTION(BlueprintPure) int32 GetReserveAmmo() const { return ReserveAmmo; }
+    UFUNCTION(BlueprintPure) bool IsReloading() const { return ReloadStage != EEmberReloadStage::None; }
+    UFUNCTION(BlueprintPure) EEmberReloadStage GetReloadStage() const { return ReloadStage; }
+    UFUNCTION(BlueprintPure) float GetReloadProgress() const;
+    UFUNCTION(BlueprintPure) UEmberWeaponDefinition* GetDefinition() const { return Definition; }
     UFUNCTION(BlueprintPure) float GetMaximumRange() const;
     UFUNCTION(BlueprintPure) FText GetWeaponDisplayName() const;
     UFUNCTION(BlueprintPure) bool IsAutomatic() const;
+    UFUNCTION(BlueprintPure) float GetSpreadDegrees(bool bAiming) const;
+    UFUNCTION(BlueprintPure) float GetVerticalRecoil() const;
+    UFUNCTION(BlueprintPure) float GetHorizontalRecoil() const;
     UFUNCTION(BlueprintPure) bool IsMuzzleObstructed() const { return bLastMuzzleObstructed; }
     UPROPERTY(BlueprintAssignable) FEmberShotResolved OnShotResolved;
     UPROPERTY(BlueprintAssignable) FEmberAmmoChanged OnAmmoChanged;
@@ -41,5 +49,7 @@ protected:
     UPROPERTY(VisibleInstanceOnly, Category="Weapon") EEmberReloadStage ReloadStage = EEmberReloadStage::None;
     UPROPERTY(VisibleInstanceOnly, Category="Weapon") bool bLastMuzzleObstructed = false;
     double LastFireTimeSeconds = -TNumericLimits<double>::Max();
+    double ReloadStartedAtSeconds = 0.0;
+    float ReloadDurationSeconds = 0.0f;
     FTimerHandle ReloadTimer;
 };

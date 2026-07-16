@@ -1,6 +1,13 @@
 #include "Misc/AutomationTest.h"
 #include "EmberBallisticsLibrary.h"
 #include "EmberTypes.h"
+#include "EmberWeaponComponent.h"
+#include "EmberWeaponDefinition.h"
+#include "EmberArmorComponent.h"
+#include "EmberAIController.h"
+#include "EmberEnemyCharacter.h"
+#include "Components/CapsuleComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEmberDamageCalculationTest,
     "ProjectEmber.Combat.DamageCalculation",
@@ -14,6 +21,17 @@ bool FEmberDamageCalculationTest::RunTest(const FString& Parameters)
     Spec.BodyPartModifier = 2.0f;
     Spec.DistanceModifier = 0.75f;
     TestEqual(TEXT("Damage modifiers are deterministic"), UEmberBallisticsLibrary::CalculateDamage(Spec), 30.0f);
+    Spec.ShotDirection = FVector(1.0f, 0.0f, 0.0f);
+    Spec.ImpactPoint = FVector(100.0f, 20.0f, 50.0f);
+    TestTrue(TEXT("Damage contract carries a normalized hit-reaction direction"),
+        FVector(Spec.ShotDirection).Equals(FVector::ForwardVector));
+    TestTrue(TEXT("Damage contract carries the impact point"),
+        FVector(Spec.ImpactPoint).Equals(FVector(100.0f, 20.0f, 50.0f)));
+    UEmberArmorComponent* Armor = NewObject<UEmberArmorComponent>();
+    float Absorbed = 0.0f;
+    const float Remaining = Armor->AbsorbDamage(20.0f, 1.0f, Absorbed);
+    TestEqual(TEXT("Armor visibly reduces but does not hide all health damage"), Absorbed, 12.0f);
+    TestEqual(TEXT("A protected rifle hit still reaches health"), Remaining, 8.0f);
     return true;
 }
 
@@ -25,5 +43,55 @@ bool FEmberFireCadenceTest::RunTest(const FString& Parameters)
 {
     TestEqual(TEXT("600 RPM equals 0.1 seconds per shot"), UEmberBallisticsLibrary::SecondsPerShot(600.0f), 0.1f);
     TestTrue(TEXT("Invalid RPM cannot produce a usable cadence"), UEmberBallisticsLibrary::SecondsPerShot(0.0f) >= BIG_NUMBER);
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEmberWeaponStateRestoreTest,
+    "ProjectEmber.Combat.WeaponStateRestore",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FEmberWeaponStateRestoreTest::RunTest(const FString& Parameters)
+{
+    UEmberWeaponDefinition* Definition = NewObject<UEmberWeaponDefinition>();
+    Definition->MagazineCapacity = 30;
+    Definition->RoundsPerMinute = 600.0f;
+    Definition->SupportedFireModes = { EEmberFireMode::FullyAutomatic };
+    UEmberWeaponComponent* Weapon = NewObject<UEmberWeaponComponent>();
+    TestTrue(TEXT("A saved weapon state initializes"),
+        Weapon->InitializeWeaponState(Definition, 11, 73));
+    TestEqual(TEXT("Saved magazine ammunition is restored"), Weapon->GetMagazineAmmo(), 11);
+    TestEqual(TEXT("Saved reserve ammunition is restored"), Weapon->GetReserveAmmo(), 73);
+    TestTrue(TEXT("Restored automatic weapon keeps its fire mode"), Weapon->IsAutomatic());
+    TestTrue(TEXT("Aim spread is tighter than hip spread"),
+        Weapon->GetSpreadDegrees(true) < Weapon->GetSpreadDegrees(false));
+    TestTrue(TEXT("A partial magazine can enter a visible reload state"), Weapon->BeginReload());
+    TestTrue(TEXT("Reload state is exposed to animation and HUD"), Weapon->IsReloading());
+    TestEqual(TEXT("Reload begins at the started contract stage"),
+        Weapon->GetReloadStage(), EEmberReloadStage::Started);
+    TestTrue(TEXT("A tactical reload can be interrupted before insertion"), Weapon->CancelReload());
+    TestFalse(TEXT("Interrupted reload clears the visible state"), Weapon->IsReloading());
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEmberCombatSpacingTest,
+    "ProjectEmber.Combat.CombatSpacing",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FEmberCombatSpacingTest::RunTest(const FString& Parameters)
+{
+    TestTrue(TEXT("Enemy minimum fire range remains outside capsule overlap space"),
+        AEmberAIController::MinimumFireRange > 500.0f);
+    TestTrue(TEXT("Desired tactical range is greater than emergency separation range"),
+        AEmberAIController::DesiredCombatRange > AEmberAIController::MinimumCombatRange);
+    TestTrue(TEXT("Maximum tactical range contains the desired combat ring"),
+        AEmberAIController::MaximumCombatRange > AEmberAIController::DesiredCombatRange);
+
+    const AEmberEnemyCharacter* Enemy = GetDefault<AEmberEnemyCharacter>();
+    TestEqual(TEXT("Enemy capsule blocks other pawns"),
+        Enemy->GetCapsuleComponent()->GetCollisionResponseToChannel(ECC_Pawn), ECR_Block);
+    TestEqual(TEXT("Enemy capsule is a valid rifle visibility target"),
+        Enemy->GetCapsuleComponent()->GetCollisionResponseToChannel(ECC_Visibility), ECR_Block);
+    TestTrue(TEXT("Enemy movement uses local crowd avoidance"),
+        Enemy->GetCharacterMovement()->bUseRVOAvoidance);
     return true;
 }

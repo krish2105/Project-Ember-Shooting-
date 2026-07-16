@@ -1,5 +1,9 @@
 #include "EmberMissionSubsystem.h"
 #include "EmberDeveloperSettings.h"
+#include "EmberArmorComponent.h"
+#include "EmberCharacter.h"
+#include "EmberHealthComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 bool UEmberMissionSubsystem::StartMission(UEmberMissionDefinition* Definition)
 {
@@ -48,6 +52,16 @@ FEmberCheckpointSnapshot UEmberMissionSubsystem::CaptureCheckpoint(FGuid Checkpo
     FEmberCheckpointSnapshot Snapshot;
     Snapshot.SchemaVersion = GetDefault<UEmberDeveloperSettings>()->SaveSchemaVersion;
     Snapshot.CheckpointId = CheckpointId;
+    if (GetWorld())
+    {
+        if (AEmberCharacter* Player = Cast<AEmberCharacter>(UGameplayStatics::GetPlayerPawn(this, 0)))
+        {
+            Snapshot.PlayerTransform = Player->GetActorTransform();
+            if (UEmberHealthComponent* Health = Player->GetHealthComponent()) Snapshot.Health = Health->GetHealth();
+            if (UEmberArmorComponent* Armor = Player->GetArmorComponent()) Snapshot.Armor = Armor->GetArmor();
+            Player->WriteWeaponCheckpoint(Snapshot);
+        }
+    }
     for (const TPair<FName, EEmberObjectiveState>& Pair : ObjectiveStates)
     {
         Snapshot.ObjectiveStates.Add(Pair.Key, static_cast<uint8>(Pair.Value));
@@ -66,6 +80,16 @@ bool UEmberMissionSubsystem::RestoreCheckpoint(const FEmberCheckpointSnapshot& S
     {
         ObjectiveStates[Pair.Key] = static_cast<EEmberObjectiveState>(Pair.Value);
         OnObjectiveStateChanged.Broadcast(Pair.Key, ObjectiveStates[Pair.Key]);
+    }
+    if (GetWorld())
+    {
+        if (AEmberCharacter* Player = Cast<AEmberCharacter>(UGameplayStatics::GetPlayerPawn(this, 0)))
+        {
+            Player->SetActorTransform(Snapshot.PlayerTransform, false, nullptr, ETeleportType::TeleportPhysics);
+            if (UEmberHealthComponent* Health = Player->GetHealthComponent()) Health->RestoreHealth(Snapshot.Health);
+            if (UEmberArmorComponent* Armor = Player->GetArmorComponent()) Armor->RestoreArmor(Snapshot.Armor);
+            if (!Snapshot.AmmunitionByType.IsEmpty()) Player->RestoreWeaponCheckpoint(Snapshot);
+        }
     }
     return true;
 }
